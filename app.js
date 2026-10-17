@@ -33,10 +33,13 @@
   function nErr() { return Object.keys(S.err).length; }
   function fmt(n) { return (Math.round(n * 100) / 100).toString().replace('.', ','); }
   function back(to) { return '<a class="back" href="' + (to || '#/') + '">← Retour</a>'; }
-  function rec(q, ok) {
+  /* Enregistrement immédiat d'une réponse (statistiques + liste des erreurs).
+     En révision des erreurs, une bonne réponse retire aussitôt la question de la liste ;
+     ailleurs, une question ratée doit être réussie deux fois pour en sortir. */
+  function rec(q, ok, review) {
     var st = S.stat[q.id] || [0, 0]; st[ok ? 0 : 1]++; S.stat[q.id] = st;
-    if (ok) { if (S.err[q.id]) { S.err[q.id]--; if (S.err[q.id] <= 0) delete S.err[q.id]; } }
-    else S.err[q.id] = 2; // deux bonnes réponses pour sortir des erreurs
+    if (ok) { if (S.err[q.id]) { S.err[q.id] = review ? 0 : S.err[q.id] - 1; if (S.err[q.id] <= 0) delete S.err[q.id]; } }
+    else S.err[q.id] = 2;
   }
 
   /* ---------- Mélange des choix (Fisher-Yates) ----------
@@ -97,7 +100,16 @@
 
   /* ---------- Session avec correction immédiate ---------- */
   var P = valid(S.P) ? S.P : null;
-  function startPractice(list, label, ret) { P = { list: deal(list), i: 0, ok: 0, ko: 0, om: 0, label: label, ret: ret, ans: null }; keep(); location.hash = '#/session'; }
+  if (P && !P.sid) P.sid = Date.now();
+  function startPractice(list, label, ret, review) { P = { list: deal(list), i: 0, ok: 0, ko: 0, om: 0, label: label, ret: ret, ans: null, review: !!review, sid: Date.now() }; keep(); location.hash = '#/session'; }
+  function isReview() { return P && (P.review || P.ret === '#/erreurs'); }
+  /* Historique tenu à jour à chaque réponse : une seule ligne par série (repérée par sid), complétée à la fin. */
+  function logP(done) {
+    var n = P.ok + P.ko + P.om; if (!n) return;
+    var r = { sid: P.sid, d: Date.now(), type: P.review || P.ret === '#/erreurs' ? 'Révision des erreurs' : 'Entraînement', label: P.label, n: n, tot: P.list.length, ok: P.ok, ko: P.ko, om: P.om, note: 20 * P.ok / n, part: !done };
+    for (var k = S.hist.length - 1; k >= 0; k--) if (S.hist[k].sid === P.sid) { S.hist[k] = r; return; }
+    S.hist.push(r);
+  }
   function practice() {
     if (!P) { location.hash = '#/'; return; }
     if (P.i >= P.list.length) return practiceEnd();
@@ -123,11 +135,11 @@
     if (P.ans !== null) return;
     var it = P.list[P.i], g = goodPos(it); P.ans = j;
     if (j === g) P.ok++; else if (j === -1) P.om++; else P.ko++;
-    rec(qOf(it), j === g); keep(); practice();
+    rec(qOf(it), j === g, isReview()); logP(false); keep(); practice();
   }
   function practiceEnd() {
     var n = P.list.length;
-    S.hist.push({ d: Date.now(), type: 'Entraînement', label: P.label, n: n, ok: P.ok, ko: P.ko, om: P.om, note: 20 * P.ok / n });
+    logP(true);
     var r = P; P = null; keep();
     h('<h1>Bilan</h1><div class="card"><div class="score">' + r.ok + ' / ' + n + '</div><div class="kpis"><div><b>' + r.ok + '</b>justes</div><div><b>' + r.ko + '</b>fausses</div><div><b>' + r.om + '</b>sans réponse</div></div>' +
       '<p class="muted small">' + esc(r.label) + '</p><div class="row"><a class="btn" href="' + r.ret + '">Nouvelle série</a><a class="btn ghost" href="#/erreurs">Mes erreurs (' + nErr() + ')</a></div></div>');
@@ -221,11 +233,11 @@
   function errors() {
     var ids = Object.keys(S.err).map(Number).filter(function (id) { return BY[id]; });
     var html = back() + '<h1>Mes erreurs</h1>';
-    if (!ids.length) html += '<div class="card">Aucune erreur enregistrée. Une question ratée revient ici ; il faut y répondre juste deux fois pour qu\'elle disparaisse.</div>';
-    else html += '<div class="card"><p>' + ids.length + ' question(s) à revoir. Une question sort de la liste après deux bonnes réponses.</p><div class="row"><button class="btn gold" id="go">Réviser mes erreurs</button><button class="btn ghost" id="rz">Vider</button></div></div>' +
+    if (!ids.length) html += '<div class="card">Aucune erreur enregistrée. Une question ratée revient ici ; elle en sort dès que vous y répondez juste en révision (ou après deux bonnes réponses en entraînement).</div>';
+    else html += '<div class="card"><p>' + ids.length + ' question(s) à revoir. Chaque bonne réponse en révision retire aussitôt la question de la liste, même si vous quittez la série en cours de route.</p><div class="row"><button class="btn gold" id="go">Réviser mes erreurs</button><button class="btn ghost" id="rz">Vider</button></div></div>' +
       ids.map(function (id) { var q = BY[id]; return '<div class="card small"><b>' + esc(q.q) + '</b><br>→ ' + esc(q.c[q.a]) + '<div class="muted">' + esc(q.t + ' · ' + q.s) + '</div></div>'; }).join('');
     h(html);
-    var g = document.getElementById('go'); if (g) g.onclick = function () { startPractice(shuffle(ids.map(function (id) { return BY[id]; })), 'Mes erreurs', '#/erreurs'); };
+    var g = document.getElementById('go'); if (g) g.onclick = function () { startPractice(shuffle(ids.map(function (id) { return BY[id]; })), 'Mes erreurs', '#/erreurs', true); };
     var z = document.getElementById('rz'); if (z) z.onclick = function () { if (confirm('Vider la liste des erreurs ?')) { S.err = {}; save(); errors(); } };
   }
 
@@ -237,7 +249,7 @@
     var ks = Object.keys(th);
     html += ks.length ? ks.map(function (k) { var t = th[k], p = Math.round(100 * t[0] / (t[0] + t[1])); return '<div>' + esc(k) + ' <span class="muted small">— ' + p + ' % · ' + t[2] + ' question(s) vues</span><div class="bar"><i style="width:' + p + '%"></i></div></div>'; }).join('') : '<p class="muted">Pas encore de réponses.</p>';
     html += '</div><h2>Historique</h2><div class="card">' + (rows.length ? '<table><tr><th>Date</th><th>Séance</th><th>Note</th></tr>' + rows.map(function (r) {
-      var d = new Date(r.d); return '<tr><td>' + d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '</td><td>' + esc(r.type) + '<div class="muted small">' + esc(r.label) + ' · ' + r.ok + ' J / ' + r.ko + ' F / ' + r.om + ' NR</div></td><td><b>' + fmt(r.note) + '</b>/20</td></tr>';
+      var d = new Date(r.d); return '<tr><td>' + d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '</td><td>' + esc(r.type) + '<div class="muted small">' + esc(r.label) + (r.part ? ' · en cours (' + r.n + ' / ' + r.tot + ')' : '') + ' · ' + r.ok + ' J / ' + r.ko + ' F / ' + r.om + ' NR</div></td><td><b>' + fmt(r.note) + '</b>/20</td></tr>';
     }).join('') + '</table>' : '<p class="muted">Aucune séance.</p>') + '</div>';
     h(html);
   }
