@@ -1,13 +1,15 @@
-# QCM Concours C · Finances publiques (Lama Learning)
+# Lama Learning · QCM de culture générale
 
-Application web mobile d'entraînement au QCM de préadmissibilité du **concours commun de catégorie C des ministères économiques et financiers** (agent administratif principal des Finances publiques).
+Application web mobile de QCM, centrée sur la **culture générale**, avec en complément le français, le calcul et la logique.
 
-- 400 questions de culture générale : 200 en histoire de France, 100 sur les institutions, 100 en arts, sciences et monde.
-- Une question officielle, tirée des annales ou du sujet test 2026, porte la mention « officielle ».
-- Entraînement par thème et sous-thème, avec correction immédiate.
-- Examen blanc chronométré avec pénalité pour les réponses fausses.
-- Révision des erreurs, scores sauvegardés sur l'appareil.
-- Pages « Annales » (liens officiels) et « Méthode du jury ».
+- **Culture générale : 450 questions** — 200 en histoire de France, 100 sur les institutions, 50 en géographie (France, outre-mer et Europe), 100 en arts, sciences et monde.
+- **Français : 200 questions** — orthographe, homophones, accords, nature et fonction, ponctuation, conjugaison, vocabulaire, synonymes et antonymes, expressions.
+- **Calcul et logique : 211 questions** — pourcentages, proportionnalité, fractions, conversions, intérêts, vitesses et problèmes ; suites de nombres et de lettres, intrus, problèmes logiques, codes.
+- Entraînement par matière, thème et sous-thème, avec correction immédiate et explication.
+- Examen blanc chronométré de 10 à 80 questions (30 secondes par question), tirées au hasard dans toute la banque avec une majorité de culture générale.
+- Pénalité réglable : Zen (0), Facile (−0,25), Difficile (−0,5, par défaut) ou Extrême (−1).
+- Les 4 choix sont mélangés à chaque affichage (Fisher-Yates) ; une série en cours est sauvegardée avec son ordre.
+- Révision des erreurs, scores sauvegardés sur l'appareil, mode sombre.
 - Application installable (PWA) qui fonctionne hors ligne.
 
 Site : https://sanarkor.github.io/lama-learning-qcm/
