@@ -405,20 +405,84 @@
   function toastOff() { var el = document.getElementById('toast'); if (el) el.className = ''; clearTimeout(toastT); }
   function curRoute() { return location.hash.replace(/^#\/?/, '').split('?')[0]; }
   function onlyHere(list) { return list.some(function (it) { var q = BY[it.id]; return q && (q.m === 'fr' || q.m === 'en'); }); }
+  /* Verrou : '' si la langue peut changer, sinon le message court affiché dans le menu */
   function lockReason() {
-    var r = curRoute(), why = t('Changement de langue indisponible : les questions de Français n\'existent qu\'en français.', 'Language switch unavailable: English questions only exist in English.');
+    var r = curRoute(), why = t('Indisponible dans la catégorie Français', 'Unavailable in the English category');
     if (r === 'entrainement' && (tr.m === 'fr' || tr.m === 'en')) return why;
     if (r === 'session' && P && P.i < P.list.length && onlyHere(P.list)) return why;
-    if (r === 'epreuve' && E && onlyHere(E.list)) return t('Changement de langue indisponible : cet examen blanc contient des questions de Français, qui n\'existent qu\'en français.', 'Language switch unavailable: this mock exam contains English questions, which only exist in English.');
+    if (r === 'epreuve' && E && onlyHere(E.list)) return t('Indisponible : cet examen blanc contient des questions de la catégorie Français', 'Unavailable: this mock exam contains questions from the English category');
     return '';
   }
+  var FLAG = {};
+  function flagSvg(lg) { if (!FLAG[lg]) { var f = document.querySelector('#langbtn .flag-' + lg + ' svg'); FLAG[lg] = f ? f.outerHTML : ''; } return FLAG[lg]; }
+  var LOCK = '<svg class="lk" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2" fill="currentColor"/><path d="M8.2 10.5V7.6a3.8 3.8 0 0 1 7.6 0v2.9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
   function langState() {
     var lb = document.getElementById('langbtn'); if (!lb) return;
-    var why = lockReason();
-    lb.classList.toggle('off', !!why); lb.setAttribute('aria-disabled', why ? 'true' : 'false');
-    lb.title = why || t('Français, passer en anglais', 'English, switch to French');
-    lb.setAttribute('aria-label', why ? t('Français. ', 'English. ') + why : t('Français, passer en anglais', 'English, switch to French'));
+    var why = lockReason(), cur = t('Français', 'English');
+    lb.classList.toggle('off', !!why);
+    lb.title = why ? cur + ' 🔒 ' + why : t('Langue : Français', 'Language: English');
+    lb.setAttribute('aria-label', why ? t('Langue : Français, verrouillée. ', 'Language: English, locked. ') + why : t('Langue : Français. Ouvrir le menu des langues', 'Language: English. Open the language menu'));
+    if (menuOpen()) fillMenu();
   }
+  /* ---------- Menu des langues ---------- */
+  function menuEl() { return document.getElementById('langmenu'); }
+  function menuOpen() { var m = menuEl(); return !!m && m.classList.contains('on'); }
+  function fillMenu() {
+    var m = menuEl(), why = lockReason();
+    m.innerHTML = (why ? '<p class="lmsg" role="note">' + LOCK + '<span>' + esc(why) + '</span></p>' : '') +
+      [['fr', 'Français'], ['en', 'English']].map(function (x) {
+        var on = (x[0] === 'en') === EN, dis = !on && !!why;
+        return '<button type="button" role="menuitemradio" class="lopt' + (on ? ' cur' : '') + (dis ? ' dis' : '') + '" data-lg="' + x[0] + '" lang="' + x[0] + '" aria-checked="' + on + '"' + (dis ? ' aria-disabled="true"' : '') + ' tabindex="-1">' +
+          '<span class="flag">' + flagSvg(x[0]) + '</span><span class="ltx">' + x[1] + '</span>' +
+          (on ? '<svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' : (dis ? LOCK : '')) + '</button>';
+      }).join('');
+    m.setAttribute('aria-label', t('Langue', 'Language'));
+    m.querySelectorAll('.lopt').forEach(function (b) {
+      b.onclick = function () {
+        if (b.classList.contains('dis')) return;
+        var lg = b.dataset.lg; closeMenu(true);
+        if ((lg === 'en') !== EN) setLang(lg);
+      };
+    });
+  }
+  function placeMenu() {
+    var m = menuEl(), r = document.getElementById('langbtn').getBoundingClientRect(), vw = document.documentElement.clientWidth;
+    m.style.top = Math.round(r.bottom + 8) + 'px';
+    var w = m.offsetWidth, left = Math.min(Math.max(8, r.right - w), vw - w - 8);
+    m.style.left = Math.round(Math.max(8, left)) + 'px';
+    m.style.setProperty('--ax', Math.round(r.left + r.width / 2 - Math.max(8, left)) + 'px');
+  }
+  function openMenu() {
+    var m = menuEl(), lb = document.getElementById('langbtn');
+    if (!m) { m = document.createElement('div'); m.id = 'langmenu'; m.setAttribute('role', 'menu'); document.body.appendChild(m); }
+    fillMenu(); m.hidden = false; placeMenu();
+    void m.offsetWidth; m.classList.add('on'); /* reflow : l'animation d'ouverture part de l'état fermé */
+    lb.setAttribute('aria-expanded', 'true');
+    var f = m.querySelector('.lopt.cur') || m.querySelector('.lopt'); if (f) f.focus({ preventScroll: true });
+  }
+  function closeMenu(focusBtn) {
+    var m = menuEl(), lb = document.getElementById('langbtn'); if (!m || !m.classList.contains('on')) return;
+    m.classList.remove('on'); lb.setAttribute('aria-expanded', 'false');
+    setTimeout(function () { if (!m.classList.contains('on')) m.hidden = true; }, 180);
+    if (focusBtn) lb.focus({ preventScroll: true });
+  }
+  document.addEventListener('pointerdown', function (e) {
+    if (!menuOpen()) return;
+    if (menuEl().contains(e.target) || document.getElementById('langbtn').contains(e.target)) return;
+    closeMenu(false);
+  }, true);
+  document.addEventListener('keydown', function (e) {
+    if (!menuOpen()) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeMenu(true); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
+      var it = [].slice.call(menuEl().querySelectorAll('.lopt')), k = it.indexOf(document.activeElement);
+      k = e.key === 'Home' ? 0 : e.key === 'End' ? it.length - 1 : (k + (e.key === 'ArrowDown' ? 1 : -1) + it.length) % it.length;
+      e.preventDefault(); it[k].focus();
+    }
+    if (e.key === 'Tab') closeMenu(false);
+  });
+  window.addEventListener('resize', function () { if (menuOpen()) placeMenu(); });
+  window.addEventListener('hashchange', function () { closeMenu(false); });
   function loadEN(cb) {
     if (window.QCM_EN) return cb(true);
     if (loadingEN) return; loadingEN = true;
@@ -464,7 +528,8 @@
     hb.setAttribute('aria-label', t('Retour à l\'accueil', 'Back to home')); hb.title = t('Accueil', 'Home'); hb.querySelector('span').textContent = t('Accueil', 'Home');
     sb.setAttribute('aria-label', t('Réglages', 'Settings')); sb.title = t('Réglages', 'Settings');
     br.setAttribute('aria-label', 'Llama Learning · ' + t('Accueil', 'Home'));
-    lb.onclick = function () { setLang(EN ? 'fr' : 'en'); };
+    lb.setAttribute('aria-haspopup', 'menu'); lb.setAttribute('aria-controls', 'langmenu'); if (!lb.hasAttribute('aria-expanded')) lb.setAttribute('aria-expanded', 'false');
+    lb.onclick = function () { if (menuOpen()) closeMenu(false); else openMenu(); };
     langState();
   }
   headerLabels();
