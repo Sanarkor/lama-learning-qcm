@@ -270,19 +270,55 @@
     var parts = location.hash.replace(/^#\/?/, '').split('?'), r = parts[0], prm = {};
     (parts[1] || '').split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) prm[p[0]] = decodeURIComponent(p[1] || ''); });
     if (r !== 'epreuve') clearInterval(tick);
-    document.body.classList.toggle('is-home', (routes[r] || home) === home);
+    var isHome = (routes[r] || home) === home;
+    document.body.classList.toggle('is-home', isHome);
+    /* « Tirer pour rafraîchir » : autorisé seulement sur l'accueil */
+    document.documentElement.style.overscrollBehaviorY = document.body.style.overscrollBehaviorY = isHome ? 'auto' : 'none';
+    if (!isHome) ptrReset();
     if (E && E.done && r === 'epreuve') return examResult();
     (routes[r] || home)(prm);
   }
   window.addEventListener('hashchange', route);
 
-  /* Empêche le « tirer pour rafraîchir » accidentel sur mobile */
-  var y0 = 0;
-  document.addEventListener('touchstart', function (e) { y0 = e.touches[0].clientY; }, { passive: true });
+  /* « Tirer pour rafraîchir »
+     - Accueil : overscroll-behavior-y auto, aucun preventDefault → le rafraîchissement natif du navigateur reste possible.
+       Dans l'application installée (pas de geste natif) : tirer de plus de 70 px puis relâcher recharge la page.
+       Si le navigateur prend le geste à son compte, il envoie touchcancel et le rechargement maison n'a pas lieu.
+     - Autres pages : overscroll-behavior-y none + preventDefault quand on tire vers le bas depuis le haut. */
+  var y0 = 0, pull = 0, track = false, PTR = 70, ptrEl = null;
+  /* Onglet de navigateur mobile : le geste natif suffit (évite un double indicateur).
+     Application installée (affichage standalone, sans geste natif) ou autre appareil tactile : rafraîchissement maison. */
+  var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  var nativePTR = !standalone && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  function onHome() { return document.body.classList.contains('is-home'); }
+  function atTop() { return (document.scrollingElement || document.documentElement).scrollTop <= 0; }
+  function ptrShow(d) {
+    if (!ptrEl) { ptrEl = document.createElement('div'); ptrEl.id = 'ptr'; ptrEl.setAttribute('aria-hidden', 'true'); document.body.appendChild(ptrEl); }
+    var ready = d > PTR;
+    ptrEl.textContent = ready ? '↻ Relâchez pour actualiser' : '↓ Tirez pour actualiser';
+    ptrEl.className = 'on' + (ready ? ' ready' : '');
+    ptrEl.style.transform = 'translate(-50%,' + Math.min(d, 110) * 0.6 + 'px)';
+  }
+  function ptrReset() { track = false; pull = 0; if (ptrEl) { ptrEl.className = ''; ptrEl.style.transform = ''; } }
+  document.addEventListener('touchstart', function (e) {
+    y0 = e.touches[0].clientY; pull = 0;
+    track = !nativePTR && onHome() && e.touches.length === 1 && atTop();
+  }, { passive: true });
   document.addEventListener('touchmove', function (e) {
-    var el = document.scrollingElement || document.documentElement;
-    if (el.scrollTop <= 0 && e.touches[0].clientY > y0) e.preventDefault();
+    var dy = e.touches[0].clientY - y0;
+    if (onHome()) {
+      if (!track) return;
+      if (e.touches.length !== 1 || !atTop() || dy <= 0) { if (pull) ptrReset(); track = !nativePTR && e.touches.length === 1 && atTop(); return; }
+      pull = dy; if (dy > 20) ptrShow(dy);
+      return; /* jamais de preventDefault sur l'accueil */
+    }
+    if (atTop() && dy > 0 && e.cancelable) e.preventDefault();
   }, { passive: false });
+  document.addEventListener('touchend', function () {
+    if (track && onHome() && pull > PTR) { ptrEl.textContent = '↻ Actualisation…'; keep(); location.reload(); return; }
+    ptrReset();
+  }, { passive: true });
+  document.addEventListener('touchcancel', ptrReset, { passive: true });
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
   route();

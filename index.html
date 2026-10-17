@@ -106,6 +106,8 @@ body.is-home .tile.hero-tile b{font-size:1.2em}
 @media (max-width:599px){body.is-home .tiles>.tile:last-child:nth-child(even){grid-column:1/-1}}
 .ttl b,.ttl span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:370px){.brand img{height:34px}.ttl b{font-size:1em}.ttl span{font-size:.78em}.top{padding-left:10px;padding-right:10px}}
+#ptr{position:fixed;top:0;left:50%;transform:translate(-50%,0);z-index:20;margin-top:-44px;padding:8px 14px;border-radius:999px;background:var(--card);color:var(--navy);border:2px solid var(--gold);font-weight:700;font-size:.9em;box-shadow:var(--shadow);opacity:0;pointer-events:none;white-space:nowrap;transition:opacity .15s}
+#ptr.on{opacity:1;margin-top:8px}#ptr.ready{background:var(--btn);color:#fff;border-color:var(--btnb)}
 </style>
 </head>
 <body>
