@@ -397,8 +397,8 @@
     var lb = document.getElementById('langbtn'); if (!lb) return;
     var why = lockReason();
     lb.classList.toggle('off', !!why); lb.setAttribute('aria-disabled', why ? 'true' : 'false');
-    lb.title = why || t('Passer en anglais · Switch to English', 'Passer en français · Switch to French');
-    lb.setAttribute('aria-label', why || t('Langue : français. Passer en anglais', 'Language: English. Switch to French'));
+    lb.title = why || t('Français, passer en anglais', 'English, switch to French');
+    lb.setAttribute('aria-label', why ? t('Français. ', 'English. ') + why : t('Français, passer en anglais', 'English, switch to French'));
   }
   function loadEN(cb) {
     if (window.QCM_EN) return cb(true);
