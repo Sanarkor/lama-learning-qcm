@@ -10,6 +10,7 @@ Application web mobile de QCM, centrée sur la **culture générale**, avec en c
 - Pénalité réglable : Zen (0), Facile (−0,25), Difficile (−0,5, par défaut) ou Extrême (−1).
 - Les 4 choix sont mélangés à chaque affichage (Fisher-Yates) ; une série en cours est sauvegardée avec son ordre.
 - Révision des erreurs, scores sauvegardés sur l'appareil, mode sombre.
+- Thèmes de couleur au choix dans les Réglages : Bleu (par défaut), Violet pourpre, Vert et Rouge.
 - Application installable (PWA) qui fonctionne hors ligne.
 
 Site : https://sanarkor.github.io/lama-learning-qcm/

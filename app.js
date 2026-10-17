@@ -11,7 +11,12 @@
     return s;
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  var THEMES = [['bleu', 'Bleu', '#0b1f4d', 'linear-gradient(135deg,#0b1f4d,#1e3a8a 45%,#3b82f6)'], ['violet', 'Violet pourpre', '#3b0a45', 'linear-gradient(135deg,#3b0a45,#5b1a6e 45%,#a855f7)'],
+    ['vert', 'Vert', '#052e1a', 'linear-gradient(135deg,#052e1a,#14532d 45%,#16a34a)'], ['rouge', 'Rouge', '#4a0a14', 'linear-gradient(135deg,#4a0a14,#8b1a2b 45%,#d9405a)']];
+  function theme() { for (var i = 0; i < THEMES.length; i++) if (THEMES[i][0] === S.set.theme) return THEMES[i]; return THEMES[0]; }
   function applySet() {
+    var th = theme(); document.documentElement.setAttribute('data-theme', th[0]);
+    var mt = document.querySelector('meta[name="theme-color"]'); if (mt) mt.setAttribute('content', th[2]);
     document.documentElement.style.setProperty('--fs', (S.set.fs || 17) + 'px');
     document.documentElement.classList.toggle('dark', !!S.set.dark);
   }
@@ -241,10 +246,12 @@
   function reglages() {
     h(back() + '<h1>Réglages</h1><div class="card"><b>Taille du texte</b><div class="chips">' +
       [[15, 'Petite'], [17, 'Normale'], [19, 'Grande'], [21, 'Très grande']].map(function (x) { return '<button class="chip' + (S.set.fs === x[0] ? ' on' : '') + '" data-fs="' + x[0] + '">' + x[1] + '</button>'; }).join('') +
-      '</div><b>Couleurs</b><div class="chips"><button class="chip' + (!S.set.dark ? ' on' : '') + '" data-dk="0">Clair</button><button class="chip' + (S.set.dark ? ' on' : '') + '" data-dk="1">Sombre</button></div></div>' +
+      '</div><b>Couleurs</b><div class="chips"><button class="chip' + (!S.set.dark ? ' on' : '') + '" data-dk="0">Clair</button><button class="chip' + (S.set.dark ? ' on' : '') + '" data-dk="1">Sombre</button></div>' +
+      '<b>Thème de couleur</b><div class="chips">' + THEMES.map(function (x) { return '<button class="chip' + (theme()[0] === x[0] ? ' on' : '') + '" data-th="' + x[0] + '"><span class="sw" style="background:' + x[3] + '"></span>' + x[1] + '</button>'; }).join('') + '</div></div>' +
       '<div class="card"><b>Données</b><p class="small muted">Vos scores et erreurs restent sur cet appareil (stockage local du navigateur).</p><button class="btn ghost" id="rz">Tout effacer</button></div>' +
       '<div class="card small muted">' + Q.length + ' questions. Pour installer l\'application : menu du navigateur → « Ajouter à l\'écran d\'accueil ».</div>');
     app.querySelectorAll('[data-fs]').forEach(function (b) { b.onclick = function () { S.set.fs = +b.dataset.fs; save(); applySet(); reglages(); }; });
+    app.querySelectorAll('[data-th]').forEach(function (b) { b.onclick = function () { S.set.theme = b.dataset.th; save(); applySet(); reglages(); }; });
     app.querySelectorAll('[data-dk]').forEach(function (b) { b.onclick = function () { S.set.dark = b.dataset.dk === '1'; save(); applySet(); reglages(); }; });
     document.getElementById('rz').onclick = function () { if (confirm('Effacer scores, erreurs et statistiques ?')) { S.hist = []; S.err = {}; S.stat = {}; P = null; E = null; keep(); reglages(); } };
   }
