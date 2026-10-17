@@ -1,13 +1,16 @@
 /* Llama Learning — QCM de culture générale, en français ou en anglais. Application statique, données dans localStorage. */
 (function () {
   'use strict';
-  /* Langue : choisie dans l'en-tête, enregistrée dans localStorage (lamaqcm-lang) et appliquée avant l'affichage
-     par le script de <head> (classe html.en + chargement synchrone de data_en.js). */
+  /* Langue : choisie dans l'en-tête et enregistrée dans localStorage (lamaqcm-lang). Au chargement, le script de <head>
+     l'applique avant l'affichage (classe html.en + data_en.js). Ensuite, le bouton bascule en direct, sans recharger :
+     data_en.js est chargé à la demande la première fois. */
   var LK = 'lamaqcm-lang';
   var X = window.QCM_EN, EN = document.documentElement.classList.contains('en') && !!X;
   if (!EN) { document.documentElement.classList.remove('en'); document.documentElement.lang = 'fr'; }
   function t(fr, en) { return EN ? en : fr; }
   var D = window.QCM_DATA, Q, BY = {}, MAT;
+  function buildData() {
+  BY = {};
   if (EN) {
     /* Anglais : mêmes identifiants que le français (scores et erreurs compatibles), sans la matière Français, avec la matière English. */
     var NM = function (n) { return X.names[n] || n; };
@@ -19,9 +22,13 @@
     MAT = { cg: X.matieres.cg, en: X.matieres.en, ma: X.matieres.ma };
   } else { Q = D.questions; MAT = D.matieres; }
   Q.forEach(function (q) { BY[q.id] = q; });
+  }
+  buildData();
   var KEY = 'lamaqcm-v2', L = 'ABCD';
   /* Séries en cours propres à chaque langue (les questions disponibles diffèrent) */
-  var PK = EN ? 'P_en' : 'P', EK = EN ? 'E_en' : 'E';
+  var PK, EK;
+  function keys() { PK = EN ? 'P_en' : 'P'; EK = EN ? 'E_en' : 'E'; }
+  keys();
   var S = load();
   function load() {
     var s; try { s = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { s = {}; }
@@ -29,8 +36,14 @@
     return s;
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
-  var THEMES = [['bleu', t('Bleu', 'Blue'), '#0b1f4d', 'linear-gradient(135deg,#0b1f4d,#1e3a8a 45%,#3b82f6)'], ['violet', t('Violet pourpre', 'Purple'), '#3b0a45', 'linear-gradient(135deg,#3b0a45,#5b1a6e 45%,#a855f7)'],
+  var THEMES, LEVELS;
+  /* Libellés qui dépendent de la langue (recalculés à chaque changement) */
+  function labels() {
+  LEVELS = [['Zen', 0], [t('Facile', 'Easy'), 0.25], [t('Difficile', 'Hard'), 0.5], [t('Extrême', 'Extreme'), 1]];
+  THEMES = [['bleu', t('Bleu', 'Blue'), '#0b1f4d', 'linear-gradient(135deg,#0b1f4d,#1e3a8a 45%,#3b82f6)'], ['violet', t('Violet pourpre', 'Purple'), '#3b0a45', 'linear-gradient(135deg,#3b0a45,#5b1a6e 45%,#a855f7)'],
     ['vert', t('Vert', 'Green'), '#052e1a', 'linear-gradient(135deg,#052e1a,#14532d 45%,#16a34a)'], ['rouge', t('Rouge', 'Red'), '#4a0a14', 'linear-gradient(135deg,#4a0a14,#8b1a2b 45%,#d9405a)']];
+  }
+  labels();
   function theme() { for (var i = 0; i < THEMES.length; i++) if (THEMES[i][0] === S.set.theme) return THEMES[i]; return THEMES[0]; }
   function applySet() {
     var th = theme(); document.documentElement.setAttribute('data-theme', th[0]);
@@ -42,7 +55,8 @@
 
   var app = document.getElementById('app');
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  function h(html) { app.innerHTML = html; window.scrollTo(0, 0); }
+  var keepScroll = false;
+  function h(html) { app.innerHTML = html; if (!keepScroll) window.scrollTo(0, 0); langState(); }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   function uniq(a) { return a.filter(function (x, i) { return a.indexOf(x) === i; }); }
   function themes(m) { return uniq(Q.filter(function (q) { return q.m === m; }).map(function (q) { return q.t; })); }
@@ -111,14 +125,16 @@
     document.getElementById('go').onclick = function () {
       var list = shuffle(Q.filter(f)); if (tr.n) list = list.slice(0, tr.n);
       if (!list.length) return alert(t('Aucune question pour ce choix.', 'No questions for this choice.'));
-      startPractice(list, (tr.t || MAT[tr.m]) + (tr.s ? ' · ' + tr.s : ''), '#/entrainement');
+      startPractice(list, { m: tr.m, t: tr.t, s: tr.s }, '#/entrainement');
     };
   }
 
   /* ---------- Session avec correction immédiate ---------- */
   var P = valid(S[PK]) ? S[PK] : null;
   if (P && !P.sid) P.sid = Date.now();
-  function startPractice(list, label, ret, review) { P = { list: deal(list), i: 0, ok: 0, ko: 0, om: 0, label: label, ret: ret, ans: null, review: !!review, sid: Date.now() }; keep(); location.hash = '#/session'; }
+  /* lab : description brute de la série (matière, thème, sous-thème), pour retraduire son libellé si la langue change */
+  function mkLabel(lab) { return lab.rv ? t('Mes erreurs · ', 'My mistakes · ') + MAT[lab.m] : (lab.t || MAT[lab.m]) + (lab.s ? ' · ' + lab.s : ''); }
+  function startPractice(list, lab, ret, review) { P = { list: deal(list), i: 0, ok: 0, ko: 0, om: 0, lab: lab, label: mkLabel(lab), ret: ret, ans: null, review: !!review, sid: Date.now() }; keep(); location.hash = '#/session'; }
   function isReview() { return P && (P.review || P.ret === '#/erreurs'); }
   /* Historique tenu à jour à chaque réponse : une seule ligne par série (repérée par sid), complétée à la fin. */
   function logP(done) {
@@ -163,7 +179,6 @@
   }
 
   /* ---------- Examen blanc ---------- */
-  var LEVELS = [['Zen', 0], [t('Facile', 'Easy'), 0.25], [t('Difficile', 'Hard'), 0.5], [t('Extrême', 'Extreme'), 1]];
   function levelName(p) { for (var i = 0; i < LEVELS.length; i++) if (LEVELS[i][1] === p) return LEVELS[i][0]; return ''; }
   function penLabel(p) { return levelName(p) + ' (' + (p ? '−' : '') + fmt(p) + ')'; }
   var SEC = 30; // secondes par question
@@ -265,7 +280,7 @@
     }
     h(html);
     app.querySelectorAll('[data-rv]').forEach(function (b) { b.onclick = function () {
-      var m = b.dataset.rv; startPractice(shuffle(ids.filter(function (id) { return BY[id].m === m; }).map(function (id) { return BY[id]; })), t('Mes erreurs · ', 'My mistakes · ') + MAT[m], '#/erreurs', true);
+      var m = b.dataset.rv; startPractice(shuffle(ids.filter(function (id) { return BY[id].m === m; }).map(function (id) { return BY[id]; })), { m: m, rv: true }, '#/erreurs', true);
     }; });
     /* « Vider » n'efface que les erreurs visibles dans la langue affichée */
     var z = document.getElementById('rz'); if (z) z.onclick = function () { if (confirm(t('Vider la liste des erreurs ?', 'Clear the list of mistakes?'))) { ids.forEach(function (id) { delete S.err[id]; }); save(); errors(); } };
@@ -356,20 +371,82 @@
   }, { passive: true });
   document.addEventListener('touchcancel', ptrReset, { passive: true });
 
-  /* ---------- Langue ---------- */
+  /* ---------- Langue (changement en direct) ----------
+     Les questions de culture générale et de calcul et logique ont les mêmes identifiants dans les deux langues :
+     une série ou un examen en cours se traduit sur place (même ordre mélangé, même réponse, même chrono, même progression).
+     Les questions de Français et d'English n'existent que dans leur langue : sur ces matières (pages, séries,
+     examens qui en contiennent), le bouton est grisé et explique pourquoi. */
+  var loadingEN = false, toastT = null;
+  function toast(msg, stay) {
+    var el = document.getElementById('toast');
+    if (!el) { el = document.createElement('div'); el.id = 'toast'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite'); document.body.appendChild(el); }
+    el.textContent = msg; el.className = 'on'; clearTimeout(toastT);
+    if (!stay) toastT = setTimeout(function () { el.className = ''; }, 2800);
+  }
+  function toastOff() { var el = document.getElementById('toast'); if (el) el.className = ''; clearTimeout(toastT); }
+  function curRoute() { return location.hash.replace(/^#\/?/, '').split('?')[0]; }
+  function onlyHere(list) { return list.some(function (it) { var q = BY[it.id]; return q && (q.m === 'fr' || q.m === 'en'); }); }
+  function lockReason() {
+    var r = curRoute(), why = t('Changement de langue indisponible : les questions de Français n\'existent qu\'en français.', 'Language switch unavailable: English questions only exist in English.');
+    if (r === 'entrainement' && (tr.m === 'fr' || tr.m === 'en')) return why;
+    if (r === 'session' && P && P.i < P.list.length && onlyHere(P.list)) return why;
+    if (r === 'epreuve' && E && onlyHere(E.list)) return t('Changement de langue indisponible : cet examen blanc contient des questions de Français, qui n\'existent qu\'en français.', 'Language switch unavailable: this mock exam contains English questions, which only exist in English.');
+    return '';
+  }
+  function langState() {
+    var lb = document.getElementById('langbtn'); if (!lb) return;
+    var why = lockReason();
+    lb.classList.toggle('off', !!why); lb.setAttribute('aria-disabled', why ? 'true' : 'false');
+    lb.title = why || t('Passer en anglais · Switch to English', 'Passer en français · Switch to French');
+    lb.setAttribute('aria-label', why || t('Langue : français. Passer en anglais', 'Language: English. Switch to French'));
+  }
+  function loadEN(cb) {
+    if (window.QCM_EN) return cb(true);
+    if (loadingEN) return; loadingEN = true;
+    var lb = document.getElementById('langbtn'); lb.classList.add('busy');
+    toast('Loading English…', true);
+    var sc = document.createElement('script'); sc.src = 'data_en.js';
+    sc.onload = function () { loadingEN = false; lb.classList.remove('busy'); toastOff(); cb(!!window.QCM_EN); };
+    sc.onerror = function () { loadingEN = false; lb.classList.remove('busy'); sc.remove(); toast('Version anglaise indisponible (connexion requise la première fois).'); };
+    document.head.appendChild(sc);
+  }
+  var REV = null;
+  function trName(n, toEN) {
+    if (!n || !X) return n;
+    if (toEN) return X.names[n] || n;
+    if (!REV) { REV = {}; Object.keys(X.names).forEach(function (k) { REV[X.names[k]] = k; }); }
+    return REV[n] || n;
+  }
   function setLang(lg) {
-    if ((lg === 'en') === EN) return;
+    var toEN = lg === 'en';
+    if (toEN === EN) return;
+    var why = lockReason(); if (why) { toast(why); return; }
+    if (!window.QCM_EN) { loadEN(function (ok) { if (ok) setLang(lg); }); return; }
+    X = window.QCM_EN;
+    keep();
+    var oldP = PK, oldE = EK, curP = P, curE = E;
+    EN = toEN; buildData(); keys(); labels();
     try { localStorage.setItem(LK, lg); } catch (e) {}
-    keep(); location.reload();
+    var de = document.documentElement; de.classList.toggle('en', EN); de.lang = EN ? 'en' : 'fr';
+    /* Séries en cours : traduites si toutes leurs questions existent dans la nouvelle langue, sinon chacune reste dans sa langue */
+    if (curP && valid(curP)) {
+      if (curP.lab) { curP.lab.t = trName(curP.lab.t, EN); curP.lab.s = trName(curP.lab.s, EN); curP.label = mkLabel(curP.lab); }
+      P = curP; S[oldP] = null;
+    } else P = valid(S[PK]) ? S[PK] : null;
+    if (curE && valid(curE)) { E = curE; S[oldE] = null; } else E = valid(S[EK]) ? S[EK] : null;
+    tr.t = trName(tr.t, EN); tr.s = trName(tr.s, EN);
+    keep(); headerLabels();
+    var y = window.scrollY; keepScroll = true;
+    try { route(); } finally { keepScroll = false; }
+    window.scrollTo(0, y);
   }
   function headerLabels() {
     var hb = document.getElementById('homebtn'), sb = document.getElementById('setbtn'), lb = document.getElementById('langbtn'), br = document.querySelector('.brand');
     hb.setAttribute('aria-label', t('Retour à l\'accueil', 'Back to home')); hb.title = t('Accueil', 'Home'); hb.querySelector('span').textContent = t('Accueil', 'Home');
     sb.setAttribute('aria-label', t('Réglages', 'Settings')); sb.title = t('Réglages', 'Settings');
     br.setAttribute('aria-label', 'Llama Learning · ' + t('Accueil', 'Home'));
-    lb.setAttribute('aria-label', t('Langue : français. Passer en anglais', 'Language: English. Switch to French'));
-    lb.title = t('Français · Switch to English', 'English · Passer en français');
     lb.onclick = function () { setLang(EN ? 'fr' : 'en'); };
+    langState();
   }
   headerLabels();
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
