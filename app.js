@@ -30,6 +30,25 @@
   function keys() { PK = EN ? 'P_en' : 'P'; EK = EN ? 'E_en' : 'E'; }
   keys();
   var S = load();
+  /* Questions retirées de la banque (identifiants dans QCM_DATA.retired) : leurs traces sont nettoyées
+     (erreurs, statistiques et séries en cours), pour qu'aucune page ne cherche une question qui n'existe plus. */
+  (function () {
+    var R = {}, ch = false; (D.retired || []).forEach(function (id) { R[id] = 1; });
+    Object.keys(R).forEach(function (id) { if (id in S.err) { delete S.err[id]; ch = true; } if (id in S.stat) { delete S.stat[id]; ch = true; } });
+    ['P', 'P_en', 'E', 'E_en'].forEach(function (k) {
+      var x = S[k]; if (!x || !x.list || !x.list.some(function (it) { return R[it.id]; })) return;
+      var exam = k.charAt(0) === 'E', list = [], ans = [], i = x.i || 0;
+      x.list.forEach(function (it, j) {
+        if (R[it.id]) { if (j < x.i) i--; else if (j === x.i && !exam) x.ans = null; return; }
+        list.push(it); if (exam) ans.push(x.ans ? x.ans[j] : null);
+      });
+      ch = true;
+      if (!list.length) { S[k] = null; return; }
+      x.list = list; if (exam) x.ans = ans;
+      x.i = Math.max(0, exam ? Math.min(i, list.length - 1) : Math.min(i, list.length));
+    });
+    if (ch) save();
+  })();
   function load() {
     var s; try { s = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { s = {}; }
     s.hist = s.hist || []; s.err = s.err || {}; s.stat = s.stat || {}; s.set = s.set || { fs: 17, dark: false };
