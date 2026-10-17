@@ -1,8 +1,10 @@
-# Lama Learning · QCM de culture générale
+# Llama Learning · Quiz your way to knowledge
 
-Application web mobile de QCM, centrée sur la **culture générale**, avec en complément le français, le calcul et la logique.
+*QCM de culture générale.*
 
-- **Culture générale : 450 questions** — 200 en histoire de France, 100 sur les institutions, 50 en géographie (France, outre-mer et Europe), 100 en arts, sciences et monde.
+Application web mobile de QCM (1 661 questions), centrée sur la **culture générale**, avec en complément le français, le calcul et la logique.
+
+- **Culture générale : 1 250 questions** — 200 en histoire de France, 100 sur les institutions, 50 en géographie (France, outre-mer et Europe), 100 en arts, sciences et monde, et 80 dans chacun de ces thèmes : littérature ; cinéma et musique ; sport ; sciences et nature ; histoire du monde ; mythologie et religions ; gastronomie et terroirs ; langue et expressions ; actualité et économie ; drapeaux et capitales du monde.
 - **Français : 200 questions** — orthographe, homophones, accords, nature et fonction, ponctuation, conjugaison, vocabulaire, synonymes et antonymes, expressions.
 - **Calcul et logique : 211 questions** — pourcentages, proportionnalité, fractions, conversions, intérêts, vitesses et problèmes ; suites de nombres et de lettres, intrus, problèmes logiques, codes.
 - Entraînement par matière, thème et sous-thème, avec correction immédiate et explication.

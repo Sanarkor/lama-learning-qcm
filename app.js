@@ -1,4 +1,4 @@
-/* Lama Learning — QCM de culture générale. Application statique, données dans localStorage. */
+/* Llama Learning — QCM de culture générale. Application statique, données dans localStorage. */
 (function () {
   'use strict';
   var D = window.QCM_DATA, Q = D.questions, BY = {};
@@ -56,8 +56,8 @@
   /* ---------- Accueil ---------- */
   function home() {
     var last = S.hist[S.hist.length - 1];
-    h('<h1 class="sr">Lama Learning · QCM de culture générale</h1><div class="tiles">' +
-      '<a class="tile hero-tile wide" href="#/entrainement?m=cg"><b>Culture générale</b><span>Histoire, institutions, géographie, arts et sciences</span></a>' +
+    h('<h1 class="sr">Llama Learning · Quiz your way to knowledge</h1><div class="tiles">' +
+      '<a class="tile hero-tile wide" href="#/entrainement?m=cg"><b>Culture générale</b><span>Histoire, sciences, littérature, sport, drapeaux et plus</span></a>' +
       '<a class="tile soft" href="#/entrainement?m=fr"><b>Français</b><span>Vocabulaire, orthographe, grammaire</span></a>' +
       '<a class="tile soft" href="#/entrainement?m=ma"><b>Calcul et logique</b><span>Calcul, suites, raisonnement</span></a>' +
       '<a class="tile gold" href="#/examen"><b>Examen blanc</b><span>Chronométré, de 10 à 80 questions</span></a>' +
