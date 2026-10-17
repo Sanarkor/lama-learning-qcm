@@ -55,12 +55,9 @@
 
   /* ---------- Accueil ---------- */
   function home() {
-    var c = function (m) { return count(function (q) { return q.m === m; }); };
     var last = S.hist[S.hist.length - 1];
-    h('<div class="hero"><b>Lama Learning · QCM de culture générale</b><br>' +
-      '<small>' + c('cg') + ' questions de culture générale · ' + c('fr') + ' de français · ' + c('ma') + ' de calcul et logique</small></div>' +
-      '<div class="tiles">' +
-      '<a class="tile hero-tile wide" href="#/entrainement?m=cg"><b>Culture générale</b><span>Histoire, institutions, géographie, arts et sciences · ' + c('cg') + ' questions</span></a>' +
+    h('<h1 class="sr">Lama Learning · QCM de culture générale</h1><div class="tiles">' +
+      '<a class="tile hero-tile wide" href="#/entrainement?m=cg"><b>Culture générale</b><span>Histoire, institutions, géographie, arts et sciences</span></a>' +
       '<a class="tile soft" href="#/entrainement?m=fr"><b>Français</b><span>Vocabulaire, orthographe, grammaire</span></a>' +
       '<a class="tile soft" href="#/entrainement?m=ma"><b>Calcul et logique</b><span>Calcul, suites, raisonnement</span></a>' +
       '<a class="tile gold" href="#/examen"><b>Examen blanc</b><span>Chronométré, de 10 à 80 questions</span></a>' +
@@ -68,7 +65,6 @@
       (E && !E.done ? '<a class="tile" href="#/epreuve"><b>Reprendre l\'examen</b><span>' + E.list.length + ' questions en cours</span></a>' : '') +
       '<a class="tile" href="#/erreurs"><b>Mes erreurs</b><span>' + nErr() + ' question(s) à revoir</span></a>' +
       '<a class="tile" href="#/scores"><b>Mes scores</b><span>' + (last ? 'Dernier : ' + fmt(last.note) + '/20' : 'Aucun examen') + '</span></a>' +
-      '<a class="tile" href="#/reglages"><b>Réglages</b><span>Taille du texte, mode sombre</span></a>' +
       '</div>');
   }
 
@@ -274,6 +270,7 @@
     var parts = location.hash.replace(/^#\/?/, '').split('?'), r = parts[0], prm = {};
     (parts[1] || '').split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) prm[p[0]] = decodeURIComponent(p[1] || ''); });
     if (r !== 'epreuve') clearInterval(tick);
+    document.body.classList.toggle('is-home', (routes[r] || home) === home);
     if (E && E.done && r === 'epreuve') return examResult();
     (routes[r] || home)(prm);
   }
