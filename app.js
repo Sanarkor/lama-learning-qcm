@@ -15,7 +15,7 @@
     /* Anglais : mêmes identifiants que le français (scores et erreurs compatibles), sans la matière Français, avec la matière English. */
     var NM = function (n) { return X.names[n] || n; };
     Q = D.questions.filter(function (q) { return q.m !== 'fr' && X.tr[q.id]; }).map(function (q) {
-      var r = X.tr[q.id]; return { id: q.id, m: q.m, t: NM(q.t), s: NM(q.s), q: r[0], c: r[1], a: q.a, e: r[2] };
+      var r = X.tr[q.id]; return { id: q.id, m: q.m, t: NM(q.t), s: NM(q.s), q: r[0], c: r[1], a: q.a, e: r[2], f: q.f, fc: q.fc };
     });
     var cg = Q.filter(function (q) { return q.m === 'cg'; }), ma = Q.filter(function (q) { return q.m === 'ma'; });
     Q = cg.concat(X.questions, ma);
@@ -102,6 +102,10 @@
   function qOf(it) { return BY[it.id]; }
   function goodPos(it) { return it.o.indexOf(qOf(it).a); }
   function optAt(it, k) { return qOf(it).c[it.o[k]]; }
+  /* Drapeaux (window.QCM_FLAGS, dans data.js, noms neutres) : q.f = drapeau de l'énoncé ; q.fc = un drapeau par choix, dans l'ordre de q.c (il suit donc le mélange). */
+  function flagImg(k, cls) { var F = window.QCM_FLAGS; return k && F && F[k] ? '<img class="' + cls + '" src="' + F[k] + '" alt="' + t('Drapeau', 'Flag') + '">' : ''; }
+  function stemFlag(q, small) { return q.f ? '<div class="qflag' + (small ? ' sm' : '') + '">' + flagImg(q.f, 'flag') + '</div>' : ''; }
+  function optFlag(q, i) { return q.fc ? '<span class="ofw">' + flagImg(q.fc[i], 'oflag') + '</span>' : ''; }
   function valid(sess) { return sess && sess.list && sess.list.length && sess.list.every(function (it) { return BY[it.id] && it.o && it.o.length === 4; }); }
   function keep() { S[PK] = P; S[EK] = E; save(); }
 
@@ -169,10 +173,10 @@
     var html = back(P.ret) + '<div class="qhead"><span>' + esc(P.label) + '</span><span>' + (P.i + 1) + ' / ' + P.list.length + '</span></div>' +
       '<div class="bar"><i style="width:' + (100 * P.i / P.list.length) + '%"></i></div><div class="card">' +
       '<div class="qhead"><span>' + esc(q.t) + ' · ' + esc(q.s) + '</span></div>' +
-      '<div class="q">' + esc(q.q) + '</div><div class="opts">' +
+      '<div class="q">' + esc(q.q) + '</div>' + stemFlag(q) + '<div class="opts">' +
       [0, 1, 2, 3].map(function (j) {
         var cls = a === null ? '' : (j === g ? ' good' : (j === a ? ' bad' : ''));
-        return '<button class="opt' + cls + '" data-j="' + j + '"' + (a !== null ? ' disabled' : '') + '><span class="l">' + L[j] + '</span><span>' + esc(optAt(it, j)) + '</span></button>';
+        return '<button class="opt' + cls + '" data-j="' + j + '"' + (a !== null ? ' disabled' : '') + '><span class="l">' + L[j] + '</span>' + optFlag(q, it.o[j]) + '<span>' + esc(optAt(it, j)) + '</span></button>';
       }).join('') + '</div>';
     if (a === null) html += '<div class="row"><button class="btn ghost" id="skip">' + t('Je ne sais pas', 'I don\'t know') + '</button></div>';
     else html += '<div class="expl">' + (a === g ? '<b class="ok">' + t('Bonne réponse.', 'Correct.') + '</b> ' : (a === -1 ? '<b class="ko">' + t('Sans réponse.', 'No answer.') + '</b> ' + t('Réponse : ', 'Answer: ') + L[g] + '. ' : '<b class="ko">' + t('Mauvaise réponse.', 'Wrong answer.') + '</b> ' + t('Réponse : ', 'Answer: ') + L[g] + '. ')) + esc(q.e) +
@@ -229,8 +233,8 @@
     var it = E.list[E.i], q = qOf(it);
     h('<div class="qhead"><span>' + t('Examen blanc · ', 'Mock exam · ') + '' + (E.i + 1) + ' / ' + E.list.length + '</span><span class="timer" id="tm"></span></div>' +
       '<div class="bar"><i style="width:' + (100 * E.ans.filter(function (x) { return x !== null; }).length / E.list.length) + '%"></i></div>' +
-      '<div class="card"><div class="q">' + esc(q.q) + '</div><div class="opts">' +
-      [0, 1, 2, 3].map(function (j) { return '<button class="opt' + (E.ans[E.i] === j ? ' sel' : '') + '" data-j="' + j + '"><span class="l">' + L[j] + '</span><span>' + esc(optAt(it, j)) + '</span></button>'; }).join('') +
+      '<div class="card"><div class="q">' + esc(q.q) + '</div>' + stemFlag(q) + '<div class="opts">' +
+      [0, 1, 2, 3].map(function (j) { return '<button class="opt' + (E.ans[E.i] === j ? ' sel' : '') + '" data-j="' + j + '"><span class="l">' + L[j] + '</span>' + optFlag(q, it.o[j]) + '<span>' + esc(optAt(it, j)) + '</span></button>'; }).join('') +
       '</div><div class="row"><button class="btn ghost" id="prev"' + (E.i ? '' : ' disabled') + '>←</button><button class="btn ghost" id="clr">' + t('Effacer', 'Clear') + '</button><button class="btn" id="nxt">' + (E.i + 1 < E.list.length ? t('Suivante →', 'Next →') : t('Terminer', 'Finish')) + '</button></div></div>' +
       '<div class="grid">' + E.list.map(function (_, k) { return '<button class="' + (E.ans[k] !== null ? 'done' : '') + (k === E.i ? ' cur' : '') + '" data-k="' + k + '">' + (k + 1) + '</button>'; }).join('') + '</div>' +
       '<button class="btn gold block" id="fin">' + t('Terminer l\'examen', 'Finish the exam') + '</button><p class="small muted">' + t('Niveau ', 'Level ') + esc(penLabel(E.pen)) + t(' · sans réponse = 0 point.', ' · no answer = 0 points.') + '</p>');
@@ -275,9 +279,9 @@
       '<div class="row"><a class="btn" href="#/examen">' + t('Nouvel examen', 'New exam') + '</a><a class="btn ghost" href="#/erreurs">' + t('Mes erreurs', 'My mistakes') + '</a></div></div>' +
       '<h2>' + t('Correction', 'Answers') + '</h2>' + E.list.map(function (it, k) {
         var q = qOf(it), g = goodPos(it), a = E.ans[k], st = a === null ? t('Sans réponse', 'No answer') : (a === g ? t('Juste', 'Correct') : t('Fausse', 'Wrong'));
-        return '<div class="card"><div class="qhead"><span>' + (k + 1) + '. ' + esc(q.t) + '</span><b style="color:var(--' + (a === g ? 'ok' : 'ko') + ')">' + st + '</b></div><div class="q">' + esc(q.q) + '</div>' +
-          (a !== null && a !== g ? '<div class="small">' + t('Votre réponse : ', 'Your answer: ') + '' + L[a] + '. ' + esc(optAt(it, a)) + '</div>' : '') +
-          '<div class="small"><b>' + t('Réponse : ', 'Answer: ') + '' + L[g] + '. ' + esc(optAt(it, g)) + '</b></div><div class="expl small">' + esc(q.e) + '</div></div>';
+        return '<div class="card"><div class="qhead"><span>' + (k + 1) + '. ' + esc(q.t) + '</span><b style="color:var(--' + (a === g ? 'ok' : 'ko') + ')">' + st + '</b></div><div class="q">' + esc(q.q) + '</div>' + stemFlag(q, 1) +
+          (a !== null && a !== g ? '<div class="small">' + t('Votre réponse : ', 'Your answer: ') + '' + L[a] + '. ' + optFlag(q, it.o[a]) + esc(optAt(it, a)) + '</div>' : '') +
+          '<div class="small"><b>' + t('Réponse : ', 'Answer: ') + '' + L[g] + '. ' + optFlag(q, it.o[g]) + esc(optAt(it, g)) + '</b></div><div class="expl small">' + esc(q.e) + '</div></div>';
       }).join(''));
   }
 
@@ -294,7 +298,7 @@
         groups.map(function (g) { return '<button class="btn gold" data-rv="' + g[0] + '">' + t('Réviser · ', 'Review · ') + esc(MAT[g[0]]) + ' (' + g[1].length + ')</button>'; }).join('') +
         '<button class="btn ghost" id="rz">' + t('Vider', 'Clear') + '</button></div></div>' +
         groups.map(function (g) {
-          return '<h2>' + esc(MAT[g[0]]) + ' (' + g[1].length + ')</h2>' + g[1].map(function (id) { var q = BY[id]; return '<div class="card small"><b>' + esc(q.q) + '</b><br>→ ' + esc(q.c[q.a]) + '<div class="muted">' + esc(q.t + ' · ' + q.s) + '</div></div>'; }).join('');
+          return '<h2>' + esc(MAT[g[0]]) + ' (' + g[1].length + ')</h2>' + g[1].map(function (id) { var q = BY[id]; return '<div class="card small"><b>' + esc(q.q) + '</b>' + (q.f ? stemFlag(q, 1) : '<br>') + '→ ' + optFlag(q, q.a) + esc(q.c[q.a]) + '<div class="muted">' + esc(q.t + ' · ' + q.s) + '</div></div>'; }).join('');
         }).join('');
     }
     h(html);

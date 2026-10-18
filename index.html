@@ -153,6 +153,14 @@ html:not(.en) .flag-en,html.en .flag-fr{display:none}
 .top .ttl .motto{font-size:clamp(18px,6.3vw,30px);letter-spacing:0}
 @media (max-width:440px){.top{gap:5px;padding-left:9px;padding-right:9px}.top .homebtn{width:38px;height:38px;min-height:38px}.brand img{height:36px}}
 @media (max-width:370px){.top{gap:4px;padding-left:7px;padding-right:7px}.brand img{height:32px}.top .homebtn{width:36px;height:36px;min-height:36px}.langbtn .flag{width:22px;height:22px}.top .ttl .motto{font-size:22px}}
+
+/* Drapeaux : image de l'énoncé et des choix (bordure fine, pour les drapeaux blancs) */
+.qflag{display:flex;justify-content:center;margin:-4px 0 14px}
+.qflag .flag{display:block;max-width:min(62%,240px);max-height:130px;width:auto;height:auto;border:1px solid var(--line);border-radius:4px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.qflag.sm{justify-content:flex-start;margin:4px 0 8px}.qflag.sm .flag{max-height:56px;max-width:120px}
+.oflag{flex:0 0 auto;width:auto;height:34px;max-width:60px;object-fit:contain;border:1px solid var(--line);border-radius:3px;background:#fff;vertical-align:middle;margin-right:2px}
+.ofw{flex:0 0 64px;display:inline-flex;justify-content:center;align-items:center;align-self:center}
+.small .ofw{width:40px;vertical-align:middle;margin-right:4px}.small .oflag{height:20px;max-width:40px;margin:0}
 </style>
 </head>
 <body>
