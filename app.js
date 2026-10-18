@@ -138,7 +138,7 @@
       ths.map(function (x) { return '<button class="chip' + (tr.t === x ? ' on' : '') + '" data-t="' + esc(x) + '">' + esc(x) + ' (' + count(function (q) { return q.m === tr.m && q.t === x; }) + ')</button>'; }).join('') + '</div>';
     if (tr.t) html += '<b>' + t('Sous-thème', 'Subtopic') + '</b><div class="chips"><button class="chip' + (!tr.s ? ' on' : '') + '" data-s="">' + t('Tous', 'All') + '</button>' +
       subs(tr.m, tr.t).map(function (s) { return '<button class="chip' + (tr.s === s ? ' on' : '') + '" data-s="' + esc(s) + '">' + esc(s) + ' (' + count(function (q) { return q.m === tr.m && q.t === tr.t && q.s === s; }) + ')</button>'; }).join('') + '</div>';
-    html += '<b>' + t('Nombre de questions', 'Number of questions') + '</b><div class="chips">' + [10, 20, 0].map(function (n) { return '<button class="chip' + (tr.n === n ? ' on' : '') + '" data-n="' + n + '">' + (n || t('Toutes', 'All')) + '</button>'; }).join('') + '</div>' +
+    html += '<b>' + t('Nombre de questions', 'Number of questions') + '</b><div class="chips">' + [10, 20, 30, 40, 50, 60].map(function (n) { return '<button class="chip' + (tr.n === n ? ' on' : '') + '" data-n="' + n + '">' + n + '</button>'; }).join('') + '</div>' +
       '<button class="btn gold block" id="go">' + t('Commencer (', 'Start (') + Math.min(tr.n || 1e9, count(f)) + ' questions)</button></div>';
     h(html);
     app.querySelectorAll('[data-m]').forEach(function (b) { b.onclick = function () { tr.m = b.dataset.m; tr.t = ''; tr.s = ''; train(); }; });
