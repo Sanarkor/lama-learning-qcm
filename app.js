@@ -109,7 +109,7 @@
   function home() {
     var last = S.hist[S.hist.length - 1];
     h('<h1 class="sr">Llama Learning · Quiz your way to knowledge</h1><div class="tiles">' +
-      '<a class="tile hero-tile wide" href="#/entrainement?m=cg"><b>' + t('Culture générale', 'General knowledge') + '</b><span>' + t('Histoire, sciences, littérature, sport, drapeaux et plus', 'History, science, literature, sport, flags and more') + '</span></a>' +
+      '<a class="tile hero-tile wide" href="#/entrainement?m=cg"><b>' + t('Culture générale', 'General knowledge') + '</b><span>' + t('Histoire, sciences, pop culture, séries, drapeaux et plus', 'History, science, pop culture, series, flags and more') + '</span></a>' +
       (EN ? '<a class="tile soft" href="#/entrainement?m=en"><b>English</b><span>Vocabulary, tenses, spelling</span></a>'
         : '<a class="tile soft" href="#/entrainement?m=fr"><b>Français</b><span>Vocabulaire, orthographe, grammaire</span></a>') +
       '<a class="tile soft" href="#/entrainement?m=ma"><b>' + t('Calcul et logique', 'Maths and logic') + '</b><span>' + t('Calcul, suites, raisonnement', 'Arithmetic, sequences, reasoning') + '</span></a>' +
