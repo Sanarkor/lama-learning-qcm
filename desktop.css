@@ -276,3 +276,22 @@ html.dk .chips:has([data-th]),html.dk b:has(+ .chips [data-th]){display:none}
 #dk-side .dk-mode svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #dk-side .dk-mode:hover span:not(.on){opacity:1}
 #dk-side .dk-mode:focus-visible{outline:3px solid #ffd36b;outline-offset:1px}
+/* v22 : mode clair PC plus lumineux – menu clair, blocs forts en indigo, fonds plus blancs */
+:root.dk:not(.dark),:root.dk:not(.dark)[data-theme]{--bg:#fbfbfd;--dk-bg:#fbfbfd;--line:#eaecf0;--muted:#6b7280;--dk-deep:#4352a0;--hero:#4352a0;--grad:#ffffff}
+html.dk:not(.dark) body::before,html.dk:not(.dark) #dk-side{background:#ffffff;color:#1f2433;border-right:1px solid #eaecf0}
+html.dk:not(.dark) #dk-side .dk-l{color:#3a4152;opacity:1}
+html.dk:not(.dark) #dk-side .dk-l:hover{background:#f2f4f8}
+html.dk:not(.dark) #dk-side .dk-l.dk-on{background:#eef0fa;color:#3b4785;border-left-color:#3b4785;box-shadow:none}
+html.dk:not(.dark) #dk-side .dk-cap,html.dk:not(.dark) #dk-side .dk-c{color:#8a91a0;opacity:1}
+html.dk:not(.dark) #dk-side .dk-brand{border-color:#eaecf0}
+html.dk:not(.dark) #dk-side .dk-colbtn{border-color:#dfe2e8;color:#3a4152}
+html.dk:not(.dark) #dk-side .dk-colbtn:hover{background:#f2f4f8}
+html.dk:not(.dark) #dk-side .dk-foot{border-top-color:#eaecf0}
+html.dk:not(.dark) #dk-side .dk-lang{background:#f2f4f8;border:1px solid #eaecf0}
+html.dk:not(.dark) #dk-side .dk-lang button{color:#3a4152}
+html.dk:not(.dark) #dk-side .dk-lang button.on{background:#ffffff;color:#3b4785;box-shadow:0 1px 2px rgba(15,23,42,.08)}
+html.dk:not(.dark) #dk-side .dk-scroll{scrollbar-color:#d5d9e0 transparent}
+html.dk:not(.dark) #dk-side .dk-n{background:#3b4785}
+html.dk:not(.dark) #dk-side .dk-mode{background:#f2f4f8;border-color:#eaecf0;color:#3a4152}
+html.dk:not(.dark) #dk-side .dk-mode span.on{background:#ffffff;color:#3b4785;box-shadow:0 1px 2px rgba(15,23,42,.08)}
+html.dk:not(.dark) #dk-side kbd{border-color:#dfe2e8;box-shadow:none}
