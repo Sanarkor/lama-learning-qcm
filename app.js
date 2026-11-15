@@ -579,7 +579,7 @@
   }
   /* Lecture seule pour l'interface PC (desktop.js) : aucune donnée n'est modifiée par ces fonctions, sauf setLang (même effet que le menu des langues). */
   window.LLAMA = { en: function () { return EN; }, mat: function () { return MAT; }, q: function () { return Q; }, state: function () { return S; },
-    cur: function () { return { P: P, E: E, tr: tr }; }, nErr: nErr, srs: srsCounts, themes: themes, route: curRoute, lockReason: lockReason, setLang: setLang };
+    cur: function () { return { P: P, E: E, tr: tr }; }, nErr: nErr, srs: srsCounts, dark: function () { return !!S.set.dark; }, setDark: function (v) { S.set.dark = !!v; save(); applySet(); var y = window.scrollY; keepScroll = true; try { route(); } finally { keepScroll = false; } window.scrollTo(0, y); }, themes: themes, route: curRoute, lockReason: lockReason, setLang: setLang };
   headerLabels();
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
   route();

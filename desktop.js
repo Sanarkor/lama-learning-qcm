@@ -61,6 +61,7 @@
     side.addEventListener('click', function (e) {
       var b = e.target.closest && e.target.closest('[data-lg]'); if (b) { e.preventDefault(); if (!b.disabled) A().setLang(b.getAttribute('data-lg')); return; }
       if (e.target.closest && e.target.closest('#dk-helpbtn')) { toggleHelp(); return; }
+      if (e.target.closest && e.target.closest('#dk-mode')) { A().setDark(!A().dark()); return; }
       var l = e.target.closest && e.target.closest('a.dk-l');
       /* même adresse que la page actuelle : on réaffiche quand même (ex. retour au thème « Tous ») */
       if (l && l.getAttribute('href') === location.hash) { e.preventDefault(); window.dispatchEvent(new HashChangeEvent('hashchange')); }
@@ -97,6 +98,9 @@
         var cur = (x[0] === 'en') === en, dis = !cur && !!why;
         return '<button type="button" data-lg="' + x[0] + '" lang="' + x[0] + '" class="' + (cur ? 'on' : '') + '" aria-pressed="' + cur + '"' + (dis ? ' disabled' : '') + ' title="' + (dis ? esc(why) : x[1]) + '">' + x[2] + '</button>';
       }).join('') + '</div>' +
+      '<button type="button" class="dk-mode" id="dk-mode" aria-pressed="' + a.dark() + '" title="' + (a.dark() ? t('Passer en mode clair', 'Switch to light mode') : t('Passer en mode sombre', 'Switch to dark mode')) + '">' +
+        '<span class="' + (a.dark() ? '' : 'on') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>' + t('Clair', 'Light') + '</span>' +
+        '<span class="' + (a.dark() ? 'on' : '') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>' + t('Sombre', 'Dark') + '</span></button>' +
       '<div class="dk-frow">' + link('set', '#/reglages', 'set', t('Réglages', 'Settings')) +
       '<button type="button" class="dk-l dk-help" id="dk-helpbtn" title="' + t('Raccourcis clavier (H)', 'Keyboard shortcuts (H)') + '"><i>' + ico('kb') + '</i><span>' + t('Raccourcis', 'Shortcuts') + '</span><kbd>H</kbd></button></div>';
     var ak = activeKey();

@@ -248,3 +248,31 @@ html.dark.dk .opt.sel .l{color:var(--card)}
 #dk-dash .dk-srs .btn{margin:0 16px;min-width:140px}
 html.dk body.is-home .tile.srs-tile{border-top-color:var(--gold)}
 html.dk-r-revision{--W:900px}
+/* ================= v21 : palette épurée PC – 2 modes (clair / sombre), un seul accent ; les 4 thèmes enregistrés sont ignorés sur PC ================= */
+:root.dk,:root.dk[data-theme]{--bg:#f6f7f9;--card:#ffffff;--ink:#14171f;--muted:#646b78;--line:#e3e6eb;--navy:#3b4785;--navy2:#1c2130;--gold:#3b4785;--gold2:#eceef6;--tagc:#3b4785;--magenta:#3b4785;
+  --grad:#1c2130;--grad2:#3b4785;--grad3:#3b4785;--hero:#1c2130;--btn:#3b4785;--btnb:#3b4785;--badge:rgba(20,23,31,.8);--shadow:rgba(20,23,31,.08);
+  --ok:#3d7a57;--okbg:#ecf4ef;--ko:#ad4a43;--kobg:#f8eceb;--dk-deep:#1c2130;--dk-acc:#3b4785;--dk-acc2:#9aa5e6;--dk-bg:#f6f7f9}
+:root.dk.dark,:root.dk.dark[data-theme]{--bg:#16181d;--card:#1f2228;--ink:#e7e9ee;--muted:#9aa1ad;--line:#2e323a;--navy:#a7b0ea;--navy2:#2b3350;--gold:#8f9be0;--gold2:#262b3a;--tagc:#c9cff5;--magenta:#8f9be0;
+  --grad:#101216;--grad2:#4a57a6;--grad3:#4a57a6;--hero:#101216;--btn:#4a57a6;--btnb:#4a57a6;--shadow:rgba(0,0,0,.4);
+  --ok:#6fae8a;--okbg:#1c2a22;--ko:#d27b73;--kobg:#2f1f1e;--dk-deep:#101216;--dk-acc:#4a57a6;--dk-acc2:#a7b0ea;--dk-bg:#16181d}
+html.dk .btn,html.dk .btn.gold,html.dark.dk .btn.gold{background:var(--dk-acc);border-color:var(--dk-acc);color:#fff}
+html.dk .btn.ghost{background:transparent;color:var(--navy);border-color:var(--line)}
+html.dk .chip.on{background:var(--dk-acc);border-color:var(--dk-acc)}
+/* plus de filets multicolores */
+html.dk body.is-home .tile,html.dk body.is-home .tile.soft,html.dk body.is-home .tile.gold,html.dk body.is-home .tile.srs-tile{border-top:1px solid var(--line)}
+html.dk body.is-home .tile.hero-tile{border:1px solid var(--dk-deep)}
+#dk-cats .dk-mat{border-left:1px solid var(--line)}
+html.dk #dk-sign::before{background:var(--dk-acc)}
+/* menu : accent unique */
+#dk-side .dk-l.dk-on{border-left-color:var(--dk-acc2)}
+#dk-side .dk-n{background:var(--dk-acc);color:#fff}
+#dk-side .dk-lang button.on{color:#1c2130}
+/* choix du thème de couleur masqué sur PC (le choix enregistré reste stocké) */
+html.dk .chips:has([data-th]),html.dk b:has(+ .chips [data-th]){display:none}
+/* bouton clair / sombre */
+#dk-side .dk-mode{display:grid;grid-template-columns:1fr 1fr;width:100%;margin:0 0 8px;padding:2px;border:1px solid rgba(255,255,255,.2);background:transparent;cursor:pointer;font:600 13px/1 "Geist",system-ui,sans-serif;color:#fff}
+#dk-side .dk-mode span{display:flex;align-items:center;justify-content:center;gap:7px;padding:8px 0;opacity:.7}
+#dk-side .dk-mode span.on{background:#fff;color:#1c2130;opacity:1}
+#dk-side .dk-mode svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#dk-side .dk-mode:hover span:not(.on){opacity:1}
+#dk-side .dk-mode:focus-visible{outline:3px solid #ffd36b;outline-offset:1px}
