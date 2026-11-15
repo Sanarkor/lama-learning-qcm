@@ -23,6 +23,7 @@
     err: '<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4.5h-4.5"/>',
     scores: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
     set: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M5.5 18.5l1.8-1.8M16.7 7.3l1.8-1.8"/>',
+    cal: '<rect x="3.5" y="5" width="17" height="15" rx="1"/><path d="M3.5 9.5h17M8 3v4M16 3v4M8.5 14.5l2.2 2.2 4.8-4.8"/>',
     kb: '<rect x="2.5" y="6" width="19" height="12" rx="1.5"/><path d="M6 10h1M9.5 10h1M13 10h1M16.5 10h1M7 14h10"/>'
   };
   function ico(k) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + IC[k] + '</svg>'; }
@@ -43,7 +44,8 @@
     var r = route(), c = A().cur();
     if (r === '') return 'home';
     if (r === 'entrainement') return c.tr.m === 'cg' && c.tr.t ? 'th:' + c.tr.t : 'm:' + c.tr.m;
-    if (r === 'session') { var l = c.P && c.P.lab; if (l && l.rv) return 'err'; if (l && l.m === 'cg' && l.t) return 'th:' + l.t; return l ? 'm:' + l.m : 'train'; }
+    if (r === 'revision') return 'revision';
+    if (r === 'session') { var l = c.P && c.P.lab; if (l && l.srs) return 'revision'; if (l && l.rv) return 'err'; if (l && l.m === 'cg' && l.t) return 'th:' + l.t; return l ? 'm:' + l.m : 'train'; }
     return { examen: 'exam', epreuve: 'exam', erreurs: 'err', scores: 'scores', reglages: 'set' }[r] || '';
   }
   function link(k, href, icon, label, extra) {
@@ -74,6 +76,8 @@
     var rr = route();
     if (c.P && c.P.i < c.P.list.length && rr !== 'session') h += link('resume', '#/session', 'resume', t('Reprendre la série', 'Resume the set'), '<em class="dk-c">' + (c.P.i + 1) + '/' + c.P.list.length + '</em>');
     if (c.E && !c.E.done && rr !== 'epreuve') h += link('resumex', '#/epreuve', 'resume', t('Reprendre l\'examen', 'Resume the exam'), '<em class="dk-c">' + c.E.list.length + ' q</em>');
+    var sr = a.srs();
+    h += link('revision', '#/revision', 'cal', t('Révision du jour', 'Daily review'), sr.due ? '<em class="dk-n dk-due">' + sr.due + '</em>' : '<em class="dk-c">0</em>');
     h += link('err', '#/erreurs', 'err', t('Mes erreurs', 'My mistakes'), ne ? '<em class="dk-n">' + ne + '</em>' : '') +
       link('scores', '#/scores', 'scores', t('Scores et statistiques', 'Scores and stats')) + '</div>';
     h += '<div class="dk-cap">' + t('Catégories', 'Categories') + '</div><div class="dk-sec dk-cats">';
@@ -127,6 +131,10 @@
       '<div class="dk-kpi"><b>' + (rate === null ? '–' : pct(rate)) + '</b><span>' + (ans ? t('de bonnes réponses (', 'correct answers (') + fmt(tot.ok) + '/' + fmt(ans) + ')' : t('de bonnes réponses', 'correct answers')) + '</span></div>' +
       '<a class="dk-kpi" href="#/erreurs"><b>' + ne + '</b><span>' + t('question(s) à revoir', 'question(s) to review') + '</span></a>' +
       '<a class="dk-kpi" href="#/scores"><b>' + (last ? fmt(last.note, 1) + '<small>/20</small>' : '–') + '</b><span>' + (last ? t('dernière note · ', 'last mark · ') + esc(last.type) : t('aucune séance pour l\'instant', 'no session yet')) + '</span></a></div>';
+    var sr = a.srs();
+    h += '<div class="dk-srs"><div class="dk-srs-t"><b>' + t('Révision du jour', 'Daily review') + '</b><span>' + t('Répétition espacée : 1, 3, 7 puis 14 jours', 'Spaced repetition: 1, 3, 7, then 14 days') + '</span></div>' +
+      '<div class="dk-srs-n"><b>' + sr.due + '</b><span>' + t('dues aujourd\'hui', 'due today') + '</span></div><div class="dk-srs-n"><b>' + sr.learning + '</b><span>' + t('en cours', 'in progress') + '</span></div><div class="dk-srs-n"><b>' + sr.mastered + '</b><span>' + t('maîtrisées', 'mastered') + '</span></div>' +
+      '<a class="btn' + (sr.due ? ' gold' : ' ghost') + '" href="#/revision">' + (sr.due ? t('Réviser (', 'Review (') + sr.due + ')' : t('À jour', 'Up to date')) + '</a></div>';
     x.innerHTML = h; app.insertBefore(x, tiles);
     /* Catégories : un encart par thème (et par matière), avec la part déjà vue et le taux de réussite */
     var cats = D.createElement('section'); cats.id = 'dk-cats';

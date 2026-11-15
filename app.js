@@ -92,7 +92,29 @@
     var st = S.stat[q.id] || [0, 0]; st[ok ? 0 : 1]++; S.stat[q.id] = st;
     if (ok) { if (S.err[q.id]) { S.err[q.id] = review ? 0 : S.err[q.id] - 1; if (S.err[q.id] <= 0) delete S.err[q.id]; } }
     else S.err[q.id] = 2;
+    if (!ok) srsMiss(q.id);
   }
+
+  /* ---------- Révision intelligente (répétition espacée) ----------
+     Clé à part : lamaqcm-srs = { v: 1, seeded: true, it: { id: [palier, jour d'échéance] } } ; les autres données ne sont pas modifiées.
+     Une question ratée ou passée (n'importe où) entre au palier 0 et revient 1 jour plus tard.
+     En « Révision du jour », une bonne réponse la fait monter : 3 jours, puis 7, puis 14 ; une bonne réponse au palier 14 jours = maîtrisée (palier 4).
+     Une mauvaise réponse la ramène au palier 0 (1 jour). Au premier lancement, les erreurs déjà enregistrées entrent dans la file, dues aujourd'hui. */
+  var SK = 'lamaqcm-srs', IV = [1, 3, 7, 14], R = loadSrs();
+  function today() { var d = new Date(Date.now()); return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5); }
+  function loadSrs() { var r; try { r = JSON.parse(localStorage.getItem(SK)); } catch (e) {} if (!r || typeof r !== 'object' || !r.it) r = { v: 1, it: {} }; return r; }
+  function saveSrs() { try { localStorage.setItem(SK, JSON.stringify(R)); } catch (e) {} }
+  function srsMiss(id) { R.it[id] = [0, today() + IV[0]]; saveSrs(); }
+  function srsGood(id) { var x = R.it[id]; if (!x || x[0] >= 4) return; var b = x[0] + 1; R.it[id] = b >= 4 ? [4, 0] : [b, today() + IV[b]]; saveSrs(); }
+  function srsIds() { return Object.keys(R.it).map(Number).filter(function (id) { return BY[id]; }); }
+  function srsDue() { var d = today(); return srsIds().filter(function (id) { var x = R.it[id]; return x[0] < 4 && x[1] <= d; }); }
+  function srsCounts() {
+    var d = today(), c = { due: 0, learning: 0, mastered: 0, next: 0 };
+    srsIds().forEach(function (id) { var x = R.it[id]; if (x[0] >= 4) c.mastered++; else if (x[1] <= d) c.due++; else { c.learning++; if (!c.next || x[1] < c.next) c.next = x[1]; } });
+    if (c.next) c.next -= d;
+    return c;
+  }
+  if (!R.seeded) { var d0 = today(); Object.keys(S.err).forEach(function (id) { if (!R.it[id]) R.it[id] = [0, d0]; }); R.seeded = true; saveSrs(); }
 
   /* ---------- Mélange des choix (Fisher-Yates) ----------
      Chaque question d'une série reçoit sa propre permutation o : le choix affiché en position k est q.c[o[k]].
@@ -120,6 +142,7 @@
       '<a class="tile gold" href="#/examen"><b>' + t('Examen blanc', 'Mock exam') + '</b><span>' + t('Chronométré, de 10 à 80 questions', 'Timed, 10 to 80 questions') + '</span></a>' +
       (P && P.i < P.list.length ? '<a class="tile" href="#/session"><b>' + t('Reprendre', 'Resume') + '</b><span>' + t('Série en cours · ', 'Current set · ') + (P.i + 1) + ' / ' + P.list.length + '</span></a>' : '') +
       (E && !E.done ? '<a class="tile" href="#/epreuve"><b>' + t('Reprendre l\'examen', 'Resume the exam') + '</b><span>' + E.list.length + t(' questions en cours', ' questions in progress') + '</span></a>' : '') +
+      (function () { var c = srsCounts(); return '<a class="tile srs-tile" href="#/revision"><b>' + t('Révision du jour', 'Daily review') + '</b><span>' + (c.due ? c.due + t(' question(s) à réviser', ' question(s) due') : t('Rien à réviser aujourd\'hui', 'Nothing due today')) + '</span></a>'; })() +
       '<a class="tile" href="#/erreurs"><b>' + t('Mes erreurs', 'My mistakes') + '</b><span>' + nErr() + t(' question(s) à revoir', ' question(s) to review') + '</span></a>' +
       '<a class="tile" href="#/scores"><b>' + t('Mes scores', 'My scores') + '</b><span>' + (last ? t('Dernier : ', 'Last: ') + fmt(last.note) + '/20' : t('Aucun examen', 'No exam yet')) + '</span></a>' +
       '</div>');
@@ -161,13 +184,13 @@
   var P = valid(S[PK]) ? S[PK] : null;
   if (P && !P.sid) P.sid = Date.now();
   /* lab : description brute de la série (matière, thème, sous-thème), pour retraduire son libellé si la langue change */
-  function mkLabel(lab) { return lab.rv ? t('Mes erreurs · ', 'My mistakes · ') + MAT[lab.m] : (lab.t || MAT[lab.m]) + (lab.s ? ' · ' + lab.s : ''); }
+  function mkLabel(lab) { return lab.srs ? t('Révision du jour', 'Daily review') : lab.rv ? t('Mes erreurs · ', 'My mistakes · ') + MAT[lab.m] : (lab.t || MAT[lab.m]) + (lab.s ? ' · ' + lab.s : ''); }
   function startPractice(list, lab, ret, review) { P = { list: deal(list), i: 0, ok: 0, ko: 0, om: 0, lab: lab, label: mkLabel(lab), ret: ret, ans: null, review: !!review, sid: Date.now() }; keep(); location.hash = '#/session'; }
   function isReview() { return P && (P.review || P.ret === '#/erreurs'); }
   /* Historique tenu à jour à chaque réponse : une seule ligne par série (repérée par sid), complétée à la fin. */
   function logP(done) {
     var n = P.ok + P.ko + P.om; if (!n) return;
-    var r = { sid: P.sid, d: Date.now(), type: P.review || P.ret === '#/erreurs' ? t('Révision des erreurs', 'Mistake review') : t('Entraînement', 'Practice'), label: P.label, n: n, tot: P.list.length, ok: P.ok, ko: P.ko, om: P.om, note: 20 * P.ok / n, part: !done };
+    var r = { sid: P.sid, d: Date.now(), type: P.lab && P.lab.srs ? t('Révision du jour', 'Daily review') : P.review || P.ret === '#/erreurs' ? t('Révision des erreurs', 'Mistake review') : t('Entraînement', 'Practice'), label: P.label, n: n, tot: P.list.length, ok: P.ok, ko: P.ko, om: P.om, note: 20 * P.ok / n, part: !done };
     for (var k = S.hist.length - 1; k >= 0; k--) if (S.hist[k].sid === P.sid) { S.hist[k] = r; return; }
     S.hist.push(r);
   }
@@ -196,7 +219,7 @@
     if (P.ans !== null) return;
     var it = P.list[P.i], g = goodPos(it); P.ans = j;
     if (j === g) P.ok++; else if (j === -1) P.om++; else P.ko++;
-    rec(qOf(it), j === g, isReview()); logP(false); keep(); practice();
+    rec(qOf(it), j === g, isReview()); if (j === g && P.lab && P.lab.srs) srsGood(it.id); logP(false); keep(); practice();
   }
   function practiceEnd() {
     var n = P.list.length;
@@ -259,7 +282,7 @@
   function closeExam() {
     clearInterval(tick); if (E.done) return examResult(); E.done = true;
     var ok = 0, ko = 0, om = 0;
-    E.list.forEach(function (it, k) { var a = E.ans[k], g = goodPos(it); if (a === null) om++; else { if (a === g) ok++; else ko++; rec(qOf(it), a === g); } });
+    E.list.forEach(function (it, k) { var a = E.ans[k], g = goodPos(it); if (a === null) { om++; srsMiss(it.id); } else { if (a === g) ok++; else ko++; rec(qOf(it), a === g); } });
     var raw = ok - E.pen * ko, note = Math.max(0, raw) * 20 / E.list.length;
     E.res = { ok: ok, ko: ko, om: om, raw: raw, note: note };
     S.hist.push({ d: Date.now(), type: t('Examen blanc', 'Mock exam'), label: E.list.length + t(' questions · niveau ', ' questions · level ') + penLabel(E.pen), n: E.list.length, ok: ok, ko: ko, om: om, note: note }); keep();
@@ -314,6 +337,19 @@
     var z = document.getElementById('rz'); if (z) z.onclick = function () { if (confirm(t('Vider la liste des erreurs ?', 'Clear the list of mistakes?'))) { ids.forEach(function (id) { delete S.err[id]; }); save(); errors(); } };
   }
 
+  /* ---------- Révision du jour ---------- */
+  function revision() {
+    var c = srsCounts(), due = srsDue();
+    var html = back() + '<h1>' + t('Révision du jour', 'Daily review') + '</h1><div class="card"><div class="kpis"><div><b>' + c.due + '</b>' + t('à réviser aujourd\'hui', 'due today') + '</div><div><b>' + c.learning + '</b>' + t('en cours', 'in progress') + '</div><div><b>' + c.mastered + '</b>' + t('maîtrisées', 'mastered') + '</div></div>';
+    if (due.length) html += '<div class="row"><button class="btn gold block" id="go">' + t('Commencer (', 'Start (') + due.length + ' questions)</button></div>';
+    else html += '<p class="muted" style="text-align:center">' + (c.next ? t('Rien à réviser aujourd\'hui. Prochaine révision dans ', 'Nothing due today. Next review in ') + c.next + t(' jour(s).', ' day(s).') : t('Rien à réviser pour l\'instant : les questions ratées ou passées viendront ici.', 'Nothing to review yet: missed or skipped questions will come here.')) + '</p>';
+    html += '</div><div class="card small muted">' + t('Répétition espacée : une question ratée ou passée revient 1 jour plus tard. À chaque bonne réponse ici, elle revient après 3 jours, puis 7, puis 14 ; une bonne réponse au palier de 14 jours la marque comme maîtrisée. Une mauvaise réponse la ramène à 1 jour.',
+      'Spaced repetition: a missed or skipped question comes back 1 day later. Each correct answer here brings it back after 3 days, then 7, then 14; a correct answer at the 14-day step marks it as mastered. A wrong answer sends it back to 1 day.') + '</div>';
+    h(html);
+    var go = document.getElementById('go');
+    if (go) go.onclick = function () { var L2 = srsDue(); if (!L2.length) return revision(); startPractice(shuffle(L2.map(function (id) { return BY[id]; })), { m: 'cg', srs: true }, '#/revision'); };
+  }
+
   /* ---------- Scores ---------- */
   function scores() {
     var rows = S.hist.slice().reverse().slice(0, 50);
@@ -340,11 +376,11 @@
     app.querySelectorAll('[data-fs]').forEach(function (b) { b.onclick = function () { S.set.fs = +b.dataset.fs; save(); applySet(); reglages(); }; });
     app.querySelectorAll('[data-th]').forEach(function (b) { b.onclick = function () { S.set.theme = b.dataset.th; save(); applySet(); reglages(); }; });
     app.querySelectorAll('[data-dk]').forEach(function (b) { b.onclick = function () { S.set.dark = b.dataset.dk === '1'; save(); applySet(); reglages(); }; });
-    document.getElementById('rz').onclick = function () { if (confirm(t('Effacer scores, erreurs et statistiques ?', 'Erase scores, mistakes and statistics?'))) { S.hist = []; S.err = {}; S.stat = {}; S.P = S.E = S.P_en = S.E_en = null; P = null; E = null; keep(); reglages(); } };
+    document.getElementById('rz').onclick = function () { if (confirm(t('Effacer scores, erreurs et statistiques ?', 'Erase scores, mistakes and statistics?'))) { S.hist = []; S.err = {}; S.stat = {}; S.P = S.E = S.P_en = S.E_en = null; R = { v: 1, seeded: true, it: {} }; saveSrs(); P = null; E = null; keep(); reglages(); } };
   }
 
   /* ---------- Routeur ---------- */
-  var routes = { '': home, entrainement: train, session: practice, examen: examSetup, epreuve: exam, erreurs: errors, scores: scores, reglages: reglages };
+  var routes = { '': home, entrainement: train, session: practice, examen: examSetup, epreuve: exam, erreurs: errors, revision: revision, scores: scores, reglages: reglages };
   function route() {
     var parts = location.hash.replace(/^#\/?/, '').split('?'), r = parts[0], prm = {};
     (parts[1] || '').split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) prm[p[0]] = decodeURIComponent(p[1] || ''); });
@@ -543,7 +579,7 @@
   }
   /* Lecture seule pour l'interface PC (desktop.js) : aucune donnée n'est modifiée par ces fonctions, sauf setLang (même effet que le menu des langues). */
   window.LLAMA = { en: function () { return EN; }, mat: function () { return MAT; }, q: function () { return Q; }, state: function () { return S; },
-    cur: function () { return { P: P, E: E, tr: tr }; }, nErr: nErr, themes: themes, route: curRoute, lockReason: lockReason, setLang: setLang };
+    cur: function () { return { P: P, E: E, tr: tr }; }, nErr: nErr, srs: srsCounts, themes: themes, route: curRoute, lockReason: lockReason, setLang: setLang };
   headerLabels();
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
   route();

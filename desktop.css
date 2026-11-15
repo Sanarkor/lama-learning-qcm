@@ -238,3 +238,13 @@ html.dk .opt.sel .l{background:var(--navy);border-color:var(--navy);color:#fff}
 html.dk .opt.good .l{background:var(--ok);border-color:var(--ok);color:#fff}
 html.dk .opt.bad .l{background:var(--ko);border-color:var(--ko);color:#fff}
 html.dark.dk .opt.sel .l{color:var(--card)}
+/* ---- révision du jour (PC) ---- */
+#dk-dash .dk-srs{display:grid;grid-template-columns:1.6fr repeat(3,1fr) auto;align-items:center;gap:0;margin:0 0 22px;background:var(--card);border:1px solid var(--dk-bd);border-left:3px solid var(--gold);box-shadow:var(--dk-sh)}
+#dk-dash .dk-srs>div{padding:12px 18px}
+#dk-dash .dk-srs-t b{display:block;color:var(--navy);font-weight:650;letter-spacing:-.01em}
+#dk-dash .dk-srs-t span,#dk-dash .dk-srs-n span{display:block;font-size:.8em;color:var(--muted);margin-top:2px}
+#dk-dash .dk-srs-n{border-left:1px solid var(--dk-bd)}
+#dk-dash .dk-srs-n b{display:block;font:600 1.4em/1.1 "Geist",system-ui,sans-serif;font-variant-numeric:tabular-nums;color:var(--ink);letter-spacing:-.02em}
+#dk-dash .dk-srs .btn{margin:0 16px;min-width:140px}
+html.dk body.is-home .tile.srs-tile{border-top-color:var(--gold)}
+html.dk-r-revision{--W:900px}
