@@ -157,3 +157,84 @@ html.dk-r-scores table{font-size:.95em}
 #dk-helpov td{padding:7px 8px;vertical-align:middle}
 #dk-helpov td:first-child{white-space:nowrap;width:1%}
 #dk-helpov .btn{margin-top:14px;min-height:40px}
+/* ================= v19 : habillage « fintech » carré (PC uniquement ; disposition inchangée) ================= */
+html.dk{--dk-deep:var(--navy2);--dk-acc:var(--navy);--dk-bd:var(--line);--dk-sh:0 1px 2px rgba(15,23,42,.06),0 1px 1px rgba(15,23,42,.03);--dk-shh:0 4px 14px rgba(15,23,42,.09);--dk-bg:color-mix(in srgb,var(--bg) 70%,#eef1f5)}
+html.dk.dark{--dk-deep:color-mix(in srgb,var(--navy2) 45%,#05070c);--dk-acc:var(--navy2);--dk-bg:var(--bg);--dk-sh:0 1px 2px rgba(0,0,0,.35);--dk-shh:0 4px 14px rgba(0,0,0,.45)}
+/* coins carrés partout */
+html.dk *,html.dk *::before,html.dk *::after,html.dk body::before{border-radius:0!important}
+/* typographie Geist, chiffres tabulaires */
+html.dk body{font-family:"Geist",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-feature-settings:"tnum","cv11";letter-spacing:-.003em;background:var(--dk-bg)}
+html.dk #dk-side,html.dk #dk-side .dk-l,html.dk .btn,html.dk .chip,html.dk .opt,html.dk select,html.dk table{font-family:inherit}
+html.dk #dk-side{font-family:"Geist",system-ui,sans-serif}
+html.dk h1,html.dk h2{letter-spacing:-.02em;font-weight:650}
+html.dk .score,html.dk .kpis b,html.dk .timer,html.dk .qhead,html.dk td,html.dk .grid button,.dk-big,.dk-qk b,#dk-dash .dk-kpi b{font-variant-numeric:tabular-nums}
+/* menu : aplat profond, filets fins */
+html.dk body::before,#dk-side{background:var(--dk-deep)}
+#dk-side{box-shadow:none;border-right:1px solid rgba(255,255,255,.08)}
+#dk-side .dk-brand{box-shadow:none;border:1px solid rgba(255,255,255,.2)}
+#dk-side .dk-colbtn{border-color:rgba(255,255,255,.22);background:transparent}
+#dk-side .dk-colbtn:hover{background:rgba(255,255,255,.1)}
+#dk-side .dk-l{font-weight:500;opacity:.78;border-left:2px solid transparent}
+#dk-side .dk-l:hover{background:rgba(255,255,255,.07)}
+#dk-side .dk-l.dk-on{background:rgba(255,255,255,.1);color:#fff;box-shadow:none;border-left-color:#fff;font-weight:600}
+html.dark #dk-side .dk-l.dk-on{background:rgba(255,255,255,.1);color:#fff}
+#dk-side .dk-cap{font-weight:600;letter-spacing:.14em;opacity:.5}
+#dk-side .dk-n{background:#e11d48;box-shadow:none;padding:1px 6px}
+#dk-side .dk-lang{background:transparent;border:1px solid rgba(255,255,255,.2);padding:2px}
+#dk-side .dk-lang button.on{background:#fff;color:var(--navy2)}
+#dk-side .dk-foot{border-top-color:rgba(255,255,255,.1)}
+#dk-side kbd,#dk-helpov kbd,.dk-keys kbd{box-shadow:none;font-family:"Geist Mono",ui-monospace,Consolas,monospace}
+/* signature */
+html.dk #dk-sign{box-shadow:none}
+/* composants : bordures fines, ombres légères, aplats sobres */
+html.dk .card,html.dk .list a,html.dk .list button{border:1px solid var(--dk-bd);box-shadow:var(--dk-sh)}
+html.dk .btn{min-height:44px;border-width:1px;font-weight:600;letter-spacing:.01em;background:var(--dk-acc);border-color:var(--dk-acc);box-shadow:none}
+html.dk .btn.gold{background:var(--dk-deep);border-color:var(--dk-deep)}
+html.dark.dk .btn.gold{background:var(--gold);border-color:var(--gold);color:#05070c}
+html.dk .btn.ghost{background:transparent;color:var(--navy);border-color:var(--dk-bd)}
+html.dk .btn.ghost:hover:not(:disabled){border-color:var(--navy);filter:none}
+html.dk .chip{border-width:1px;font-weight:500}
+html.dk .chip.on{background:var(--dk-deep);border-color:var(--dk-deep);color:#fff}
+html.dk .tag{background:transparent;border:1px solid var(--dk-bd);color:var(--navy);font-weight:600;letter-spacing:.02em}
+html.dk .bar{height:4px;background:var(--dk-bd)}
+html.dk .bar i,.dk-pb i{background:var(--navy)}
+html.dk .opt{border-width:1px;box-shadow:var(--dk-sh)}
+html.dk .opt .l{background:transparent;border:1px solid var(--dk-bd);font-weight:600}
+html.dk .opt.sel{border-color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy)}
+html.dk .opt.good,html.dk .opt.bad{border-width:2px}
+html.dk .expl{border-left-width:3px;background:color-mix(in srgb,var(--card) 60%,var(--bg))}
+html.dk .grid button{border-width:1px}
+html.dk .grid button.done{background:var(--dk-deep);border-color:var(--dk-deep)}
+html.dk .grid button.cur{outline:2px solid var(--navy);outline-offset:-2px}
+html.dk-quiz .opt:not(:disabled):hover{box-shadow:var(--dk-shh);transform:none;border-color:var(--navy)}
+html.dk-quiz .qhead .timer{background:transparent;border:1px solid var(--dk-bd);color:var(--navy)}
+/* accueil : tuiles en aplats profonds (plus de dégradés vifs) */
+html.dk body.is-home .tile{background:var(--card);color:var(--ink);border:1px solid var(--dk-bd);box-shadow:var(--dk-sh);text-shadow:none;border-top:3px solid var(--navy)}
+html.dk body.is-home .tile b{color:var(--navy)}
+html.dk body.is-home .tile span{color:var(--muted);opacity:1}
+html.dk body.is-home .tile.hero-tile{background:var(--dk-deep);border-color:var(--dk-deep);border-top-color:var(--gold)}
+html.dk body.is-home .tile.hero-tile b,html.dk body.is-home .tile.hero-tile span{color:#fff}
+html.dk body.is-home .tile.hero-tile span{opacity:.75}
+html.dk body.is-home .tile.soft{border-top-color:var(--magenta)}
+html.dk body.is-home .tile.gold{border-top-color:var(--gold)}
+html.dk body.is-home .tile:hover{filter:none;transform:translateY(-1px);box-shadow:var(--dk-shh)}
+#dk-dash .dk-kpi{box-shadow:var(--dk-sh);border-color:var(--dk-bd)}
+#dk-dash .dk-k1{background:var(--dk-deep)}
+#dk-dash .dk-kpi b{font-family:"Geist",system-ui,sans-serif;font-weight:600;letter-spacing:-.025em}
+#dk-dash .dk-kpi span{font-size:.8em;letter-spacing:.01em}
+#dk-dash a.dk-kpi:hover{transform:none;box-shadow:var(--dk-shh)}
+.dk-pb{height:3px;margin-top:12px}
+#dk-dash .dk-k1 .dk-pb{background:rgba(255,255,255,.2)}
+#dk-cats .dk-cat{box-shadow:var(--dk-sh);border-color:var(--dk-bd)}
+#dk-cats .dk-cat:hover{transform:none;box-shadow:var(--dk-shh)}
+#dk-cats .dk-mat{border-left:3px solid var(--magenta)}
+#dk-cats h2 small{letter-spacing:0}
+.dk-qcard{box-shadow:var(--dk-sh);border-color:var(--dk-bd)}
+.dk-qk div{background:transparent;border:1px solid var(--dk-bd)}
+.dk-qk b{font-weight:600}
+.dk-big{font-weight:600;letter-spacing:-.02em}
+#dk-helpov .dk-hbox{box-shadow:0 12px 40px rgba(0,0,0,.25);border:1px solid var(--dk-bd)}
+html.dk .opt.sel .l{background:var(--navy);border-color:var(--navy);color:#fff}
+html.dk .opt.good .l{background:var(--ok);border-color:var(--ok);color:#fff}
+html.dk .opt.bad .l{background:var(--ko);border-color:var(--ko);color:#fff}
+html.dark.dk .opt.sel .l{color:var(--card)}
