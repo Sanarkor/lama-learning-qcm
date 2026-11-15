@@ -295,3 +295,22 @@ html.dk:not(.dark) #dk-side .dk-n{background:#3b4785}
 html.dk:not(.dark) #dk-side .dk-mode{background:#f2f4f8;border-color:#eaecf0;color:#3a4152}
 html.dk:not(.dark) #dk-side .dk-mode span.on{background:#ffffff;color:#3b4785;box-shadow:0 1px 2px rgba(15,23,42,.08)}
 html.dk:not(.dark) #dk-side kbd{border-color:#dfe2e8;box-shadow:none}
+/* v23 : touche de couleur discrète sur le tableau de bord (mode clair PC) */
+html.dk:not(.dark) #dk-dash .dk-kpi:not(.dk-k1){border-top:3px solid var(--kc,#4352a0)}
+html.dk:not(.dark) #dk-dash .dk-kpi:not(.dk-k1) b{color:var(--kc,#4352a0)}
+html.dk:not(.dark) #dk-dash .dk-kpis>:nth-child(2){--kc:#2f7d6d;background:linear-gradient(#f2f8f6,#fff 70%)}
+html.dk:not(.dark) #dk-dash .dk-kpis>:nth-child(3){--kc:#b4691f;background:linear-gradient(#fbf5ee,#fff 70%)}
+html.dk:not(.dark) #dk-dash .dk-kpis>:nth-child(4){--kc:#7a4fa3;background:linear-gradient(#f6f2fa,#fff 70%)}
+html.dk:not(.dark) #dk-dash .dk-k1{background:linear-gradient(135deg,#3f4fa0,#5566c0)}
+html.dk:not(.dark) body.is-home .tile.hero-tile{background:linear-gradient(135deg,#3f4fa0,#5566c0);border-color:#4352a0}
+html.dk:not(.dark) body.is-home .tile:not(.hero-tile){background:linear-gradient(#f4f5fc,#fff 75%)}
+html.dk:not(.dark) body.is-home .tiles>.tile:nth-child(2){border-top-color:#2f7d6d;background:linear-gradient(#f1f8f6,#fff 75%)}
+html.dk:not(.dark) body.is-home .tiles>.tile:nth-child(3){border-top-color:#b4691f;background:linear-gradient(#fbf5ee,#fff 75%)}
+html.dk:not(.dark) body.is-home .tiles>.tile:nth-child(2) b{color:#2f7d6d}
+html.dk:not(.dark) body.is-home .tiles>.tile:nth-child(3) b{color:#9a5a1a}
+html.dk:not(.dark) #dk-dash .dk-srs{background:linear-gradient(90deg,#f1f3fc,#fff 45%);border-left-color:#4352a0}
+html.dk:not(.dark) #dk-cats .dk-cat{border-left:3px solid var(--cc,#4352a0)}
+html.dk:not(.dark) #dk-cats .dk-cat .dk-pb i{background:var(--cc,#4352a0)}
+html.dk:not(.dark) #dk-cats .dk-grid>.dk-cat:nth-child(4n+2){--cc:#2f7d6d}
+html.dk:not(.dark) #dk-cats .dk-grid>.dk-cat:nth-child(4n+3){--cc:#b4691f}
+html.dk:not(.dark) #dk-cats .dk-grid>.dk-cat:nth-child(4n){--cc:#7a4fa3}
