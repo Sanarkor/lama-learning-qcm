@@ -75,7 +75,7 @@
   var app = document.getElementById('app');
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   var keepScroll = false;
-  function h(html) { app.innerHTML = html; if (!keepScroll) window.scrollTo(0, 0); langState(); }
+  function h(html) { app.innerHTML = html; if (!keepScroll) window.scrollTo(0, 0); langState(); try { document.dispatchEvent(new CustomEvent('llama:render')); } catch (e) {} }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   function uniq(a) { return a.filter(function (x, i) { return a.indexOf(x) === i; }); }
   function themes(m) { return uniq(Q.filter(function (q) { return q.m === m; }).map(function (q) { return q.t; })); }
@@ -130,6 +130,11 @@
   function train(prm) {
     if (!MAT[tr.m]) { tr.m = 'cg'; tr.t = ''; tr.s = ''; }
     if (prm && prm.m && MAT[prm.m] && prm.m !== tr.m) { tr.m = prm.m; tr.t = ''; tr.s = ''; }
+    /* Lien direct vers un thème (menu de l'interface PC) : #/entrainement?m=cg&t=Thème ; le paramètre est consommé puis retiré de l'adresse. */
+    if (prm && prm.t != null && (prm.m || tr.m) === tr.m) {
+      if (!prm.t || themes(tr.m).indexOf(prm.t) >= 0) { tr.t = prm.t; tr.s = ''; }
+      try { history.replaceState(null, '', '#/entrainement?m=' + tr.m); } catch (e) {}
+    }
     var ths = themes(tr.m);
     var f = function (q) { return q.m === tr.m && (!tr.t || q.t === tr.t) && (!tr.s || q.s === tr.s); };
     var html = back() + '<h1>' + t('Entraînement', 'Practice') + '</h1><div class="card"><b>' + t('Matière', 'Subject') + '</b><div class="chips">' +
@@ -536,6 +541,9 @@
     lb.onclick = function () { if (menuOpen()) closeMenu(false); else openMenu(); };
     langState();
   }
+  /* Lecture seule pour l'interface PC (desktop.js) : aucune donnée n'est modifiée par ces fonctions, sauf setLang (même effet que le menu des langues). */
+  window.LLAMA = { en: function () { return EN; }, mat: function () { return MAT; }, q: function () { return Q; }, state: function () { return S; },
+    cur: function () { return { P: P, E: E, tr: tr }; }, nErr: nErr, themes: themes, route: curRoute, lockReason: lockReason, setLang: setLang };
   headerLabels();
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
   route();
