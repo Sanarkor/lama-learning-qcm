@@ -312,3 +312,18 @@ html.dk .vbtn.on{background:var(--navy2,#1e3a8a);border-color:var(--navy2,#1e3a8
 html.dk .vbtn.vmic.on{box-shadow:0 0 0 3px rgba(67,82,160,.18)}
 html.dk .vheard{font-size:.82em;letter-spacing:.01em}
 html.dk.dark .vbar{box-shadow:none}
+
+/* Catégories du tableau de bord : repliées par matière, dépliables */
+#dk-cats .dk-cg-g{margin:0 0 12px}
+#dk-cats .dk-cg-h{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border-radius:10px;border:1px solid var(--dk-bd,var(--line));background:var(--card);color:var(--ink);font:inherit;text-align:left;cursor:pointer;box-shadow:var(--dk-sh,0 1px 4px rgba(0,0,0,.05))}
+#dk-cats .dk-cg-h:hover{border-color:var(--navy);box-shadow:var(--dk-shh,0 4px 12px var(--shadow))}
+#dk-cats .dk-cg-h b{flex:1 1 auto;font-weight:650;color:var(--navy)}
+#dk-cats .dk-cg-h span{color:var(--muted);font-size:.86em}
+#dk-cats .dk-cg-h .ch{font-style:normal;color:var(--muted);transition:transform .15s;font-size:1.1em}
+#dk-cats .dk-cg-h[aria-expanded="true"] .ch{transform:rotate(180deg)}
+#dk-cats .dk-cg-h[aria-expanded="false"] + .dk-grid{display:none}
+#dk-cats .dk-cg-h[aria-expanded="true"] + .dk-grid{margin-top:10px}
+html.dk .succ-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+html.dk .succ-badge,html.dk .succ-profile{border-radius:10px}
+html.dk .succ-pop-c,html.dk #succ-pop .succ-pop-c{border-radius:10px}
+html.dk #spd-tm{font-family:"Geist",system-ui,sans-serif}

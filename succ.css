@@ -1,0 +1,48 @@
+/* Succès, profil, célébration, mode vitesse */
+.succ-profile{display:flex;flex-direction:column;gap:8px}
+.succ-profile .succ-ava{font-size:2.6rem;line-height:1;width:64px;height:64px;display:flex;align-items:center;justify-content:center;border-radius:16px;background:var(--gold2);border:1px solid var(--line)}
+.succ-id b{display:block;font-size:1.15em}
+.succ-id span{color:var(--muted);font-size:.85em}
+.succ-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0}
+.succ-stats div{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center}
+.succ-stats b{display:block;font-size:1.15em}
+.succ-stats span{font-size:.72em;color:var(--muted)}
+.succ-avas .chip{font-size:1.35em;min-width:46px;justify-content:center}
+.succ-lock{opacity:.55}
+.succ-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin:8px 0 18px}
+.succ-badge{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:4px;min-height:140px}
+.succ-badge.on{border-color:var(--navy);box-shadow:0 0 0 2px var(--gold2)}
+.succ-em{font-size:1.6rem;line-height:1}
+.succ-badge b{font-size:.95em}
+.succ-badge span{font-size:.78em;color:var(--muted);flex:1}
+.succ-badge em{font-style:normal;font-size:.75em;color:var(--navy);font-weight:600}
+.succ-pb{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:4px}
+.succ-pb i{display:block;height:100%;background:var(--gold)}
+.succ-h3{font-size:1em;margin:16px 0 8px}
+.succ-tbl{width:100%;border-collapse:collapse;font-size:.9em}
+.succ-tbl th,.succ-tbl td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+#spd-tm{font-variant-numeric:tabular-nums;font-weight:700;color:var(--navy);white-space:nowrap}
+#succ-pop{position:fixed;left:50%;top:18px;transform:translate(-50%,-12px);z-index:40;max-width:min(92vw,420px);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
+#succ-pop.on{opacity:1;transform:translate(-50%,0)}
+.succ-pop-c{display:flex;gap:12px;align-items:center;background:var(--card);color:var(--ink);border:2px solid var(--navy);border-radius:14px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.2);margin-bottom:8px}
+.succ-pop-e{font-size:2rem;line-height:1}
+.succ-pop-c b{display:block;font-size:.82em;color:var(--navy);text-transform:uppercase;letter-spacing:.04em}
+.succ-pop-c span{font-weight:600}
+/* thèmes du profil (CSS uniquement) */
+.succ-theme-or{background:linear-gradient(180deg,#fff8e8,var(--card) 40%);border-color:#d4a017}
+.succ-theme-or .succ-ava{background:#fff3c4}
+.succ-theme-emeraude{background:linear-gradient(180deg,#eaf7f0,var(--card) 40%);border-color:#2f7d6d}
+.succ-theme-emeraude .succ-ava{background:#d8f3e6}
+.succ-theme-rubis{background:linear-gradient(180deg,#fdecee,var(--card) 40%);border-color:#b43b4a}
+.succ-theme-rubis .succ-ava{background:#ffd6db}
+.succ-theme-nuit{background:linear-gradient(180deg,#1a1630,#172033 50%);color:#eef3fb;border-color:#5b4d8a}
+.succ-theme-nuit .succ-ava{background:#2a2448}
+.succ-theme-nuit .succ-id span,.succ-theme-nuit .succ-stats span{color:#b8b0d0}
+.succ-theme-nuit .succ-stats div{background:#201c38;border-color:#3a3458;color:#eef3fb}
+html.dark .succ-theme-or{background:linear-gradient(180deg,#3a2e10,var(--card) 55%)}
+html.dark .succ-theme-emeraude{background:linear-gradient(180deg,#10241c,var(--card) 55%)}
+html.dark .succ-theme-rubis{background:linear-gradient(180deg,#3a1518,var(--card) 55%)}
+@media (max-width:520px){
+  .succ-stats{grid-template-columns:repeat(2,1fr)}
+  .succ-grid{grid-template-columns:repeat(2,1fr)}
+}

@@ -145,6 +145,9 @@
       (function () { var c = srsCounts(); return '<a class="tile srs-tile" href="#/revision"><b>' + t('Révision du jour', 'Daily review') + '</b><span>' + (c.due ? c.due + t(' question(s) à réviser', ' question(s) due') : t('Rien à réviser aujourd\'hui', 'Nothing due today')) + '</span></a>'; })() +
       '<a class="tile" href="#/erreurs"><b>' + t('Mes erreurs', 'My mistakes') + '</b><span>' + nErr() + t(' question(s) à revoir', ' question(s) to review') + '</span></a>' +
       '<a class="tile" href="#/scores"><b>' + t('Mes scores', 'My scores') + '</b><span>' + (last ? t('Dernier : ', 'Last: ') + fmt(last.note) + '/20' : t('Aucun examen', 'No exam yet')) + '</span></a>' +
+      '<a class="tile gold" href="#/vitesse"><b>' + t('Mode vitesse', 'Speed mode') + '</b><span>' + t('X justes, le plus vite possible (+5 s par erreur)', 'X correct, as fast as possible (+5 s per error)') + '</span></a>' +
+      (V && V.ok < V.target ? '<a class="tile" href="#/vitesse-run"><b>' + t('Reprendre le mode vitesse', 'Resume speed mode') + '</b><span>' + V.ok + ' / ' + V.target + t(' justes', ' correct') + '</span></a>' : '') +
+      '<a class="tile" href="#/succes"><b>' + t('Succès', 'Achievements') + '</b><span>' + (window.LLAMA_SUCC ? (function () { var m = window.LLAMA_SUCC.mini(); return m.emoji + ' ' + m.title + ' · ' + t('série ', 'streak ') + m.streak; })() : t('Badges et récompenses', 'Badges and rewards')) + '</span></a>' +
       '</div>');
   }
 
@@ -211,15 +214,22 @@
       '</div><div class="row"><button class="btn gold" id="next">' + (P.i + 1 < P.list.length ? t('Question suivante', 'Next question') : t('Voir le bilan', 'See results')) + '</button></div>';
     html += '</div>';
     h(html);
+    qShownAt = Date.now();
     app.querySelectorAll('.opt').forEach(function (b) { b.onclick = function () { answer(+b.dataset.j); }; });
     var sk = document.getElementById('skip'); if (sk) sk.onclick = function () { answer(-1); };
     var nx = document.getElementById('next'); if (nx) nx.onclick = function () { P.i++; P.ans = null; keep(); practice(); };
   }
+  var qShownAt = 0;
+  function noteAnswer(ok, skip, id, ms, source) {
+    if (window.LLAMA_SUCC) window.LLAMA_SUCC.record({ ok: !!ok, skip: !!skip, id: id, ms: ms, source: source || '' });
+  }
   function answer(j) {
     if (P.ans !== null) return;
-    var it = P.list[P.i], g = goodPos(it); P.ans = j;
+    var it = P.list[P.i], g = goodPos(it), ms = qShownAt ? Date.now() - qShownAt : null; P.ans = j;
     if (j === g) P.ok++; else if (j === -1) P.om++; else P.ko++;
-    rec(qOf(it), j === g, isReview()); if (j === g && P.lab && P.lab.srs) srsGood(it.id); logP(false); keep(); practice();
+    rec(qOf(it), j === g, isReview()); if (j === g && P.lab && P.lab.srs) srsGood(it.id); logP(false); keep();
+    noteAnswer(j === g, j === -1, it.id, ms, 'practice');
+    practice();
   }
   function practiceEnd() {
     var n = P.list.length;
@@ -282,7 +292,7 @@
   function closeExam() {
     clearInterval(tick); if (E.done) return examResult(); E.done = true;
     var ok = 0, ko = 0, om = 0;
-    E.list.forEach(function (it, k) { var a = E.ans[k], g = goodPos(it); if (a === null) { om++; srsMiss(it.id); } else { if (a === g) ok++; else ko++; rec(qOf(it), a === g); } });
+    E.list.forEach(function (it, k) { var a = E.ans[k], g = goodPos(it); if (a === null) { om++; srsMiss(it.id); noteAnswer(false, true, it.id, null, 'exam'); } else { if (a === g) ok++; else ko++; rec(qOf(it), a === g); noteAnswer(a === g, false, it.id, null, 'exam'); } });
     var raw = ok - E.pen * ko, note = Math.max(0, raw) * 20 / E.list.length;
     E.res = { ok: ok, ko: ko, om: om, raw: raw, note: note };
     S.hist.push({ d: Date.now(), type: t('Examen blanc', 'Mock exam'), label: E.list.length + t(' questions · niveau ', ' questions · level ') + penLabel(E.pen), n: E.list.length, ok: ok, ko: ko, om: om, note: note }); keep();
@@ -376,15 +386,136 @@
     app.querySelectorAll('[data-fs]').forEach(function (b) { b.onclick = function () { S.set.fs = +b.dataset.fs; save(); applySet(); reglages(); }; });
     app.querySelectorAll('[data-th]').forEach(function (b) { b.onclick = function () { S.set.theme = b.dataset.th; save(); applySet(); reglages(); }; });
     app.querySelectorAll('[data-dk]').forEach(function (b) { b.onclick = function () { S.set.dark = b.dataset.dk === '1'; save(); applySet(); reglages(); }; });
-    document.getElementById('rz').onclick = function () { if (confirm(t('Effacer scores, erreurs et statistiques ?', 'Erase scores, mistakes and statistics?'))) { S.hist = []; S.err = {}; S.stat = {}; S.P = S.E = S.P_en = S.E_en = null; R = { v: 1, seeded: true, it: {} }; saveSrs(); P = null; E = null; keep(); reglages(); } };
+    document.getElementById('rz').onclick = function () { if (confirm(t('Effacer scores, erreurs, statistiques, succès et records de vitesse ?', 'Erase scores, mistakes, statistics, achievements and speed records?'))) { S.hist = []; S.err = {}; S.stat = {}; S.P = S.E = S.P_en = S.E_en = null; R = { v: 1, seeded: true, it: {} }; saveSrs(); P = null; E = null; V = null; try { localStorage.removeItem('lamaqcm-speed'); } catch (e) {} if (window.LLAMA_SUCC) window.LLAMA_SUCC.resetAll(); keep(); reglages(); } };
+  }
+
+
+  /* ---------- Succès ---------- */
+  function succes() {
+    if (window.LLAMA_SUCC) window.LLAMA_SUCC.renderPage(h, back);
+    else h(back() + '<h1>' + t('Succès', 'Achievements') + '</h1><div class="card">' + t('Module indisponible.', 'Module unavailable.') + '</div>');
+  }
+
+  /* ---------- Mode vitesse : X justes, le plus vite possible ; +5 s par erreur. Score = temps + pénalités. ---------- */
+  var sp = { n: 10, m: '', t: '' };
+  var V = null, speedTick = null;
+  (function loadV() {
+    try { var x = JSON.parse(localStorage.getItem('lamaqcm-speed') || 'null'); if (x && x.queue && x.queue.length && x.ok < x.target) V = x; } catch (e) { V = null; }
+  })();
+  function keepV() { try { if (V) localStorage.setItem('lamaqcm-speed', JSON.stringify(V)); else localStorage.removeItem('lamaqcm-speed'); } catch (e) {} }
+  function speedCatKey() { return !sp.m ? 'all' : (sp.t ? 'th:' + sp.t : 'm:' + sp.m); }
+  function speedLabel() { return !sp.m ? t('Toutes les catégories', 'All categories') : (sp.t || MAT[sp.m]); }
+  function speedPool() { return Q.filter(function (q) { return !sp.m || (q.m === sp.m && (!sp.t || q.t === sp.t)); }); }
+  function speedSetup() {
+    if (sp.m && !MAT[sp.m]) { sp.m = ''; sp.t = ''; }
+    var poolN = speedPool().length;
+    var rec = window.LLAMA_SUCC ? window.LLAMA_SUCC.best(sp.n, speedCatKey()) : null;
+    var html = back() + '<h1>' + t('Mode vitesse', 'Speed mode') + '</h1><div class="card"><p>' + t('Obtenez le nombre de bonnes réponses choisi le plus vite possible. Chaque erreur (ou « Je ne sais pas ») ajoute 5 secondes au score et est comptée. Le score final est le temps écoulé plus les pénalités. La reconnaissance vocale fonctionne aussi ici.', 'Get the chosen number of correct answers as quickly as possible. Each error (or “I don\'t know”) adds 5 seconds to the score and is counted. The final score is elapsed time plus penalties. Voice answering works here too.') + '</p>' +
+      '<b>' + t('Nombre de bonnes réponses', 'Number of correct answers') + '</b><div class="chips">' + [10, 20, 30, 50].map(function (n) { return '<button class="chip' + (sp.n === n ? ' on' : '') + '" data-sn="' + n + '">' + n + '</button>'; }).join('') + '</div>' +
+      '<b>' + t('Catégorie', 'Category') + '</b><div class="chips"><button class="chip' + (!sp.m ? ' on' : '') + '" data-sm="">' + t('Toutes', 'All') + '</button>' +
+      Object.keys(MAT).map(function (m) { return '<button class="chip' + (sp.m === m && !sp.t ? ' on' : '') + '" data-sm="' + m + '">' + esc(MAT[m]) + '</button>'; }).join('') + '</div>';
+    if (sp.m === 'cg') {
+      html += '<b>' + t('Thème', 'Topic') + '</b><div class="chips"><button class="chip' + (sp.m === 'cg' && !sp.t ? ' on' : '') + '" data-st="">' + t('Tous', 'All') + '</button>' +
+        themes('cg').map(function (x) { return '<button class="chip' + (sp.t === x ? ' on' : '') + '" data-st="' + esc(x) + '">' + esc(x) + '</button>'; }).join('') + '</div>';
+    }
+    html += (rec ? '<p><b>' + t('Meilleur record (ce défi) : ', 'Best record (this challenge): ') + '</b>' + window.LLAMA_SUCC.fmtMs(rec.scoreMs) + t(' · ', ' · ') + rec.errors + t(' erreur(s)', ' error(s)') + '</p>' : '<p class="muted">' + t('Pas encore de record pour ce défi.', 'No record for this challenge yet.') + '</p>') +
+      '<button class="btn gold block" id="go"' + (poolN ? '' : ' disabled') + '>' + t('Commencer · ', 'Start · ') + sp.n + t(' justes', ' correct') + ' (' + poolN + t(' questions)', ' questions)') + '</button></div>';
+    if (V && V.ok < V.target) html += '<div class="card"><p>' + t('Une partie est en cours (', 'A run is in progress (') + V.ok + ' / ' + V.target + t(' justes).', ' correct).') + '</p><a class="btn" href="#/vitesse-run">' + t('Reprendre', 'Resume') + '</a></div>';
+    h(html);
+    app.querySelectorAll('[data-sn]').forEach(function (b) { b.onclick = function () { sp.n = +b.dataset.sn; speedSetup(); }; });
+    app.querySelectorAll('[data-sm]').forEach(function (b) { b.onclick = function () { sp.m = b.dataset.sm; sp.t = ''; speedSetup(); }; });
+    app.querySelectorAll('[data-st]').forEach(function (b) { b.onclick = function () { sp.t = b.dataset.st; if (sp.t) sp.m = 'cg'; speedSetup(); }; });
+    document.getElementById('go').onclick = function () {
+      var pool = shuffle(speedPool());
+      if (!pool.length) return alert(t('Aucune question pour ce choix.', 'No questions for this choice.'));
+      V = { target: sp.n, n: sp.n, m: sp.m, t: sp.t, cat: speedCatKey(), label: sp.n + ' · ' + speedLabel(), queue: deal(pool), i: 0, ok: 0, ko: 0, start: 0, penalties: 0, misses: [], ans: null, sid: Date.now() };
+      keepV(); location.hash = '#/vitesse-run';
+    };
+  }
+  function speedClock() {
+    clearInterval(speedTick);
+    var f = function () {
+      if (!V || !V.start || V.done) return clearInterval(speedTick);
+      var el = document.getElementById('spd-tm');
+      var ms = Date.now() - V.start + V.penalties * 1000;
+      if (el) el.textContent = '⏱ ' + (window.LLAMA_SUCC ? window.LLAMA_SUCC.fmtMs(ms) : Math.round(ms / 1000) + ' s');
+    };
+    f(); speedTick = setInterval(f, 80);
+  }
+  function speedRun() {
+    if (!V || V.done) { location.hash = '#/vitesse'; return; }
+    if (V.ok >= V.target) return speedEnd();
+    if (V.i >= V.queue.length) {
+      var last = V.queue.length ? V.queue[V.queue.length - 1].id : null;
+      var more = shuffle(speedPool());
+      if (last && more.length > 1 && more[0].id === last) more.push(more.shift());
+      V.queue = V.queue.concat(deal(more));
+    }
+    var it = V.queue[V.i], q = qOf(it), g = goodPos(it), a = V.ans;
+    var html = back('#/vitesse') + '<div class="qhead"><span>' + t('Mode vitesse', 'Speed mode') + ' · ' + esc(V.label) + '</span><span id="spd-tm">⏱ 0.00</span></div>' +
+      '<div class="bar"><i style="width:' + (100 * V.ok / V.target) + '%"></i></div>' +
+      '<p class="small muted">' + V.ok + ' / ' + V.target + t(' justes', ' correct') + ' · ' + V.ko + t(' erreur(s)', ' error(s)') + (V.penalties ? ' · +' + V.penalties + ' s' : '') + '</p>' +
+      '<div class="card"><div class="qhead"><span>' + esc(q.t) + ' · ' + esc(q.s) + '</span></div><div class="q">' + esc(q.q) + '</div>' + stemFlag(q) + '<div class="opts">' +
+      [0, 1, 2, 3].map(function (j) {
+        var cls = a === null ? '' : (j === g ? ' good' : (j === a ? ' bad' : ''));
+        return '<button class="opt' + cls + '" data-j="' + j + '"' + (a !== null ? ' disabled' : '') + '><span class="l">' + L[j] + '</span>' + optFlag(q, it.o[j]) + '<span>' + esc(optAt(it, j)) + '</span></button>';
+      }).join('') + '</div>';
+    if (a === null) html += '<div class="row"><button class="btn ghost" id="skip">' + t('Je ne sais pas', 'I don\'t know') + '</button></div>';
+    else html += '<div class="expl">' + (a === g ? '<b class="ok">' + t('Bonne réponse.', 'Correct.') + '</b>' : '<b class="ko">' + (a === -1 ? t('Sans réponse.', 'No answer.') : t('Mauvaise réponse.', 'Wrong answer.')) + '</b> ' + t('Réponse : ', 'Answer: ') + L[g] + '.') + '</div>';
+    html += '</div>';
+    h(html);
+    if (!V.start) { V.start = Date.now(); keepV(); }
+    if (a === null) qShownAt = Date.now();
+    speedClock();
+    app.querySelectorAll('.opt').forEach(function (b) { b.onclick = function () { speedAnswer(+b.dataset.j); }; });
+    var sk = document.getElementById('skip'); if (sk) sk.onclick = function () { speedAnswer(-1); };
+    if (a !== null) {
+      var sid = V.sid, delay = a === g ? 380 : 750;
+      setTimeout(function () { if (V && V.sid === sid && V.ans !== null) speedAdvance(); }, delay);
+    }
+  }
+  function speedAnswer(j) {
+    if (!V || V.ans !== null || V.done) return;
+    var it = V.queue[V.i], g = goodPos(it), ms = qShownAt ? Date.now() - qShownAt : null;
+    V.ans = j;
+    if (j === g) V.ok++;
+    else { V.ko++; V.penalties += 5; V.misses.push({ id: it.id, j: j, g: g }); }
+    rec(qOf(it), j === g); noteAnswer(j === g, j === -1, it.id, ms, 'speed'); keepV(); speedRun();
+  }
+  function speedAdvance() {
+    if (!V || V.done) return;
+    if (V.ok >= V.target) return speedEnd();
+    V.ans = null; V.i++; keepV(); speedRun();
+  }
+  function speedEnd() {
+    clearInterval(speedTick);
+    if (!V || V.done) return;
+    V.done = true;
+    var elapsed = Math.max(0, Date.now() - (V.start || Date.now()));
+    var run = { elapsedMs: elapsed, errors: V.ko, n: V.n, cat: V.cat, label: V.label, penaltySec: 5 };
+    var r = window.LLAMA_SUCC ? window.LLAMA_SUCC.recordSpeed(run) : { scoreMs: elapsed + V.ko * 5000, isBest: false };
+    var ko = V.ko, label = V.label, misses = V.misses || [], target = V.target;
+    V = null; keepV();
+    var html = '<h1>' + t('Bilan — mode vitesse', 'Results — speed mode') + '</h1><div class="card"><div class="score">' + (window.LLAMA_SUCC ? window.LLAMA_SUCC.fmtMs(r.scoreMs) : Math.round(r.scoreMs / 1000) + ' s') + '</div>' +
+      '<p style="text-align:center" class="muted">' + t('Temps + pénalités · ', 'Time + penalties · ') + esc(label) + (r.isBest ? ' · ' + t('Nouveau record !', 'New record!') : '') + '</p>' +
+      '<div class="kpis"><div><b>' + target + '</b>' + t('justes', 'correct') + '</div><div><b>' + ko + '</b>' + t('erreurs', 'errors') + '</div><div><b>+' + (ko * 5) + ' s</b>' + t('pénalités', 'penalties') + '</div></div>' +
+      '<div class="row"><a class="btn gold" href="#/vitesse">' + t('Nouvelle partie', 'New run') + '</a><a class="btn ghost" href="#/succes">' + t('Succès', 'Achievements') + '</a></div></div>';
+    if (misses.length) {
+      html += '<h2>' + t('Erreurs', 'Errors') + '</h2>' + misses.map(function (m, i) {
+        var q = BY[m.id]; if (!q) return '';
+        return '<div class="card small"><div class="qhead"><span>' + (i + 1) + '. ' + esc(q.t) + '</span></div><b>' + esc(q.q) + '</b><div class="small"><b>' + t('Réponse : ', 'Answer: ') + esc(q.c[q.a]) + '</b></div>' + (q.e ? '<div class="expl small">' + esc(q.e) + '</div>' : '') + '</div>';
+      }).join('');
+    }
+    h(html);
   }
 
   /* ---------- Routeur ---------- */
-  var routes = { '': home, entrainement: train, session: practice, examen: examSetup, epreuve: exam, erreurs: errors, revision: revision, scores: scores, reglages: reglages };
+  var routes = { '': home, entrainement: train, session: practice, examen: examSetup, epreuve: exam, erreurs: errors, revision: revision, scores: scores, reglages: reglages, succes: succes, vitesse: speedSetup, 'vitesse-run': speedRun };
   function route() {
     var parts = location.hash.replace(/^#\/?/, '').split('?'), r = parts[0], prm = {};
     (parts[1] || '').split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) prm[p[0]] = decodeURIComponent(p[1] || ''); });
     if (r !== 'epreuve') clearInterval(tick);
+    if (r !== 'vitesse-run') clearInterval(speedTick);
     var isHome = (routes[r] || home) === home;
     document.body.classList.toggle('is-home', isHome);
     /* « Tirer pour rafraîchir » : autorisé seulement sur l'accueil */
@@ -579,7 +710,7 @@
   }
   /* Lecture seule pour l'interface PC (desktop.js) : aucune donnée n'est modifiée par ces fonctions, sauf setLang (même effet que le menu des langues). */
   window.LLAMA = { en: function () { return EN; }, mat: function () { return MAT; }, q: function () { return Q; }, state: function () { return S; },
-    cur: function () { return { P: P, E: E, tr: tr }; }, nErr: nErr, srs: srsCounts, dark: function () { return !!S.set.dark; }, setDark: function (v) { S.set.dark = !!v; save(); applySet(); var y = window.scrollY; keepScroll = true; try { route(); } finally { keepScroll = false; } window.scrollTo(0, y); }, themes: themes, route: curRoute, lockReason: lockReason, setLang: setLang };
+    cur: function () { return { P: P, E: E, tr: tr, V: V }; }, nErr: nErr, srs: srsCounts, dark: function () { return !!S.set.dark; }, setDark: function (v) { S.set.dark = !!v; save(); applySet(); var y = window.scrollY; keepScroll = true; try { route(); } finally { keepScroll = false; } window.scrollTo(0, y); }, themes: themes, route: curRoute, lockReason: lockReason, setLang: setLang };
   headerLabels();
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
   route();

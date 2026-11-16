@@ -24,7 +24,9 @@
     scores: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
     set: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M5.5 18.5l1.8-1.8M16.7 7.3l1.8-1.8"/>',
     cal: '<rect x="3.5" y="5" width="17" height="15" rx="1"/><path d="M3.5 9.5h17M8 3v4M16 3v4M8.5 14.5l2.2 2.2 4.8-4.8"/>',
-    kb: '<rect x="2.5" y="6" width="19" height="12" rx="1.5"/><path d="M6 10h1M9.5 10h1M13 10h1M16.5 10h1M7 14h10"/>'
+    kb: '<rect x="2.5" y="6" width="19" height="12" rx="1.5"/><path d="M6 10h1M9.5 10h1M13 10h1M16.5 10h1M7 14h10"/>',
+    succ: '<path d="M12 3.2 14.3 9h6.3l-5.1 3.8 2 6.2L12 15.4 6.5 19l2-6.2L3.4 9h6.3Z"/>',
+    speed: '<path d="M13 3 6 14h5l-1 7 8-12h-5l1-6z"/>'
   };
   function ico(k) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + IC[k] + '</svg>'; }
   function logoSrc() { var i = $('.top .brand img'); return i ? i.getAttribute('src') : ''; }
@@ -46,6 +48,8 @@
     if (r === 'entrainement') return c.tr.m === 'cg' && c.tr.t ? 'th:' + c.tr.t : 'm:' + c.tr.m;
     if (r === 'revision') return 'revision';
     if (r === 'session') { var l = c.P && c.P.lab; if (l && l.srs) return 'revision'; if (l && l.rv) return 'err'; if (l && l.m === 'cg' && l.t) return 'th:' + l.t; return l ? 'm:' + l.m : 'train'; }
+    if (r === 'succes') return 'succ';
+    if (r === 'vitesse' || r === 'vitesse-run') return 'speed';
     return { examen: 'exam', epreuve: 'exam', erreurs: 'err', scores: 'scores', reglages: 'set' }[r] || '';
   }
   function link(k, href, icon, label, extra) {
@@ -73,10 +77,13 @@
     var a = A(), MAT = a.mat(), c = a.cur(), st = stats(), ne = a.nErr();
     side.setAttribute('aria-label', t('Navigation principale', 'Main navigation'));
     var h = '<div class="dk-sec">' + link('home', '#/', 'home', t('Accueil', 'Home')) + link('train', '#/entrainement', 'train', t('Entraînement', 'Practice')) +
-      link('exam', '#/examen', 'exam', t('Examen blanc', 'Mock exam'));
+      link('exam', '#/examen', 'exam', t('Examen blanc', 'Mock exam')) +
+      link('speed', '#/vitesse', 'speed', t('Mode vitesse', 'Speed mode')) +
+      link('succ', '#/succes', 'succ', t('Succès', 'Achievements'));
     var rr = route();
     if (c.P && c.P.i < c.P.list.length && rr !== 'session') h += link('resume', '#/session', 'resume', t('Reprendre la série', 'Resume the set'), '<em class="dk-c">' + (c.P.i + 1) + '/' + c.P.list.length + '</em>');
     if (c.E && !c.E.done && rr !== 'epreuve') h += link('resumex', '#/epreuve', 'resume', t('Reprendre l\'examen', 'Resume the exam'), '<em class="dk-c">' + c.E.list.length + ' q</em>');
+    if (c.V && c.V.ok < c.V.target && rr !== 'vitesse-run') h += link('speed', '#/vitesse-run', 'resume', t('Reprendre le mode vitesse', 'Resume speed mode'), '<em class="dk-c">' + c.V.ok + '/' + c.V.target + '</em>');
     var sr = a.srs();
     h += link('revision', '#/revision', 'cal', t('Révision du jour', 'Daily review'), sr.due ? '<em class="dk-n dk-due">' + sr.due + '</em>' : '<em class="dk-c">0</em>');
     h += link('err', '#/erreurs', 'err', t('Mes erreurs', 'My mistakes'), ne ? '<em class="dk-n">' + ne + '</em>' : '') +
@@ -142,29 +149,43 @@
     x.innerHTML = h; app.insertBefore(x, tiles);
     /* Catégories : un encart par thème (et par matière), avec la part déjà vue et le taux de réussite */
     var cats = D.createElement('section'); cats.id = 'dk-cats';
-    var MAT = a.mat(), ch = '<h2>' + t('Catégories', 'Categories') + '<small>' + t('cliquez pour vous entraîner sur un thème', 'click a topic to practise it') + '</small></h2><div class="dk-grid">';
+    var MAT = a.mat(), ch = '<h2>' + t('Catégories', 'Categories') + '<small>' + t('repliées par matière — cliquez pour ouvrir, puis un thème pour vous entraîner', 'collapsed by subject — click to open, then a topic to practise it') + '</small></h2>';
     Object.keys(MAT).forEach(function (m) {
       var keys = Object.keys(st.by).filter(function (k) { return st.by[k].m === m; });
       if (m !== 'cg') { var z = { m: m, t: '', n: 0, seen: 0, ok: 0, ko: 0 }; keys.forEach(function (k) { var y = st.by[k]; z.n += y.n; z.seen += y.seen; z.ok += y.ok; z.ko += y.ko; }); keys = [z]; }
-      else keys = a.themes('cg').map(function (th) { return st.by['cg|' + th]; });
+      else keys = a.themes('cg').map(function (th) { return st.by['cg|' + th]; }).filter(Boolean);
+      var ntot = 0; keys.forEach(function (y) { ntot += y.n; });
+      ch += '<div class="dk-cg-g"><button type="button" class="dk-cg-h" aria-expanded="false"><b>' + esc(MAT[m]) + '</b><span>' + ntot + ' questions</span><i class="ch" aria-hidden="true">▾</i></button><div class="dk-grid">';
       keys.forEach(function (y) {
         var name = y.t || MAT[m], seen = Math.round(100 * y.seen / y.n), r = y.ok + y.ko ? Math.round(100 * y.ok / (y.ok + y.ko)) : null;
         ch += '<a class="dk-cat' + (m !== 'cg' ? ' dk-mat' : '') + '" href="#/entrainement?m=' + m + '&t=' + (y.t ? encodeURIComponent(y.t) : '') + '"><b>' + esc(name) + '</b><span>' + y.n + ' questions' + (r === null ? '' : ' · ' + pct(r) + t(' de réussite', ' correct')) + '</span>' +
           '<div class="dk-pb" title="' + pct(seen) + t(' déjà vues', ' seen') + '"><i style="width:' + seen + '%"></i></div></a>';
       });
+      ch += '</div></div>';
     });
-    cats.innerHTML = ch + '</div>'; app.appendChild(cats);
+    cats.innerHTML = ch;
+    cats.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('.dk-cg-h'); if (!b) return;
+      var open = b.getAttribute('aria-expanded') === 'true';
+      b.setAttribute('aria-expanded', open ? 'false' : 'true');
+    });
+    app.appendChild(cats);
   }
 
   /* ---------- Quiz : panneau latéral et rappel des raccourcis ---------- */
   function kb(k) { return '<kbd>' + k + '</kbd>'; }
   function quizSide() {
     var app = D.getElementById('app'), r = route(), c = A().cur(), card = $('.card', app);
-    var isQ = !!$('.opts', app) && (r === 'session' || r === 'epreuve');
+    var isQ = !!$('.opts', app) && (r === 'session' || r === 'epreuve' || r === 'vitesse-run');
     H.classList.toggle('dk-quiz', isQ);
     if (!isQ) return;
     var asd = D.createElement('aside'); asd.className = 'dk-qside';
-    if (r === 'session' && c.P) {
+    if (r === 'vitesse-run' && c.V) {
+      var V = c.V;
+      asd.innerHTML = '<div class="dk-qcard"><div class="dk-qt">' + t('Mode vitesse', 'Speed mode') + '</div><div class="dk-big">' + V.ok + '<small> / ' + V.target + '</small></div>' +
+        '<div class="dk-qk"><div><b class="ok">' + V.ok + '</b>' + t('justes', 'correct') + '</div><div><b class="ko">' + V.ko + '</b>' + t('erreurs', 'errors') + '</div><div><b>+' + (V.penalties || 0) + ' s</b>' + t('pénalités', 'penalties') + '</div></div>' +
+        '<div class="dk-qn">' + esc(V.label || '') + '</div></div>';
+    } else if (r === 'session' && c.P) {
       var P = c.P, n = P.ok + P.ko + P.om;
       asd.innerHTML = '<div class="dk-qcard"><div class="dk-qt">' + t('Série en cours', 'Current set') + '</div><div class="dk-big">' + (P.i + 1) + '<small> / ' + P.list.length + '</small></div>' +
         '<div class="dk-qk"><div><b class="ok">' + P.ok + '</b>' + t('justes', 'correct') + '</div><div><b class="ko">' + P.ko + '</b>' + t('fausses', 'wrong') + '</div><div><b>' + P.om + '</b>' + t('passées', 'skipped') + '</div></div>' +
