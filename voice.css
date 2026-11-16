@@ -1,6 +1,6 @@
 /* Mode vocal — barre de lecture / réponse, tous les écrans */
-.vbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:4px 0 12px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
-.vbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:6px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:.88em;font-weight:600;cursor:pointer}
+.vbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:4px 0 12px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r-card,16px);background:var(--bg);box-shadow:0 1px 4px var(--shadow);transition:box-shadow .16s ease}
+.vbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:6px 12px;border-radius:var(--r-btn,11px);border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:.88em;font-weight:600;cursor:pointer;transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .16s ease}
 .vbtn svg{width:18px;height:18px;flex:0 0 auto}
 .vbtn:hover{border-color:var(--navy)}
 .vbtn.on{background:var(--navy);border-color:var(--navy);color:#fff}

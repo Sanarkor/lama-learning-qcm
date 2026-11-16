@@ -59,12 +59,21 @@
   /* Libellés qui dépendent de la langue (recalculés à chaque changement) */
   function labels() {
   LEVELS = [['Zen', 0], [t('Facile', 'Easy'), 0.25], [t('Difficile', 'Hard'), 0.5], [t('Extrême', 'Extreme'), 1]];
-  THEMES = [['bleu', t('Bleu', 'Blue'), '#0b1f4d', 'linear-gradient(135deg,#0b1f4d,#1e3a8a 45%,#3b82f6)'], ['violet', t('Violet pourpre', 'Purple'), '#3b0a45', 'linear-gradient(135deg,#3b0a45,#5b1a6e 45%,#a855f7)'],
-    ['vert', t('Vert', 'Green'), '#052e1a', 'linear-gradient(135deg,#052e1a,#14532d 45%,#16a34a)'], ['rouge', t('Rouge', 'Red'), '#4a0a14', 'linear-gradient(135deg,#4a0a14,#8b1a2b 45%,#d9405a)']];
+  THEMES = [
+    ['indigo', t('Indigo', 'Indigo'), '#312e81', 'linear-gradient(135deg,#312e81,#4338ca 45%,#818cf8)'],
+    ['ocean', t('Océan', 'Ocean'), '#0c4a6e', 'linear-gradient(135deg,#0c4a6e,#0284c7 45%,#22d3ee)'],
+    ['menthe', t('Menthe', 'Mint'), '#115e59', 'linear-gradient(135deg,#115e59,#0f766e 45%,#2dd4bf)'],
+    ['corail', t('Corail', 'Coral'), '#9a3412', 'linear-gradient(135deg,#9a3412,#ea580c 45%,#fb923c)'],
+    ['lavande', t('Lavande', 'Lavender'), '#5b21b6', 'linear-gradient(135deg,#5b21b6,#7c3aed 45%,#c4b5fd)'],
+    ['soleil', t('Soleil', 'Sun'), '#92400e', 'linear-gradient(135deg,#92400e,#d97706 45%,#fbbf24)']
+  ];
   }
   labels();
-  function theme() { for (var i = 0; i < THEMES.length; i++) if (THEMES[i][0] === S.set.theme) return THEMES[i]; return THEMES[0]; }
+  var THEME_ALIAS = { bleu: 'indigo', violet: 'lavande', vert: 'menthe', rouge: 'corail' };
+  function themeId() { return THEME_ALIAS[S.set.theme] || S.set.theme; }
+  function theme() { var id = themeId(); for (var i = 0; i < THEMES.length; i++) if (THEMES[i][0] === id) return THEMES[i]; return THEMES[0]; }
   function applySet() {
+    if (THEME_ALIAS[S.set.theme]) { S.set.theme = THEME_ALIAS[S.set.theme]; save(); }
     var th = theme(); document.documentElement.setAttribute('data-theme', th[0]);
     var mt = document.querySelector('meta[name="theme-color"]'); if (mt) mt.setAttribute('content', th[2]);
     document.documentElement.style.setProperty('--fs', (S.set.fs || 17) + 'px');
@@ -379,7 +388,7 @@
     h(back() + '<h1>' + t('Réglages', 'Settings') + '</h1><div class="card"><b>' + t('Langue', 'Language') + '</b><div class="chips"><button class="chip' + (!EN ? ' on' : '') + '" data-lg="fr">Français</button><button class="chip' + (EN ? ' on' : '') + '" data-lg="en">English</button></div><b>' + t('Taille du texte', 'Text size') + '</b><div class="chips">' +
       [[15, t('Petite', 'Small')], [17, t('Normale', 'Normal')], [19, t('Grande', 'Large')], [21, t('Très grande', 'Very large')]].map(function (x) { return '<button class="chip' + (S.set.fs === x[0] ? ' on' : '') + '" data-fs="' + x[0] + '">' + x[1] + '</button>'; }).join('') +
       '</div><b>' + t('Couleurs', 'Colours') + '</b><div class="chips"><button class="chip' + (!S.set.dark ? ' on' : '') + '" data-dk="0">' + t('Clair', 'Light') + '</button><button class="chip' + (S.set.dark ? ' on' : '') + '" data-dk="1">' + t('Sombre', 'Dark') + '</button></div>' +
-      '<b>' + t('Thème de couleur', 'Colour theme') + '</b><div class="chips">' + THEMES.map(function (x) { return '<button class="chip' + (theme()[0] === x[0] ? ' on' : '') + '" data-th="' + x[0] + '"><span class="sw" style="background:' + x[3] + '"></span>' + x[1] + '</button>'; }).join('') + '</div></div>' +
+      '<b>' + t('Palette de couleurs', 'Colour palette') + '</b><div class="chips">' + THEMES.map(function (x) { return '<button class="chip' + (theme()[0] === x[0] ? ' on' : '') + '" data-th="' + x[0] + '"><span class="sw" style="background:' + x[3] + '"></span>' + x[1] + '</button>'; }).join('') + '</div></div>' +
       '<div class="card"><b>' + t('Données', 'Data') + '</b><p class="small muted">' + t('Vos scores et erreurs restent sur cet appareil (stockage local du navigateur).', 'Your scores and mistakes stay on this device (browser local storage).') + '</p><button class="btn ghost" id="rz">' + t('Tout effacer', 'Erase everything') + '</button></div>' +
       '<div class="card small muted">' + Q.length + t(' questions. Pour installer l\'application : menu du navigateur → « Ajouter à l\'écran d\'accueil ».', ' questions. To install the app: browser menu → “Add to Home screen”.') + '</div>');
     app.querySelectorAll('[data-lg]').forEach(function (b) { b.onclick = function () { setLang(b.dataset.lg); }; });

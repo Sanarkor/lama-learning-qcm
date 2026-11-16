@@ -4,14 +4,14 @@
 .succ-id b{display:block;font-size:1.15em}
 .succ-id span{color:var(--muted);font-size:.85em}
 .succ-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0}
-.succ-stats div{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center}
+.succ-stats div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 6px;text-align:center}
 .succ-stats b{display:block;font-size:1.15em}
 .succ-stats span{font-size:.72em;color:var(--muted)}
 .succ-avas .chip{font-size:1.35em;min-width:46px;justify-content:center}
 .succ-lock{opacity:.55}
 .succ-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin:8px 0 18px}
-.succ-badge{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:4px;min-height:140px}
-.succ-badge.on{border-color:var(--navy);box-shadow:0 0 0 2px var(--gold2)}
+.succ-badge{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:4px;min-height:140px}
+.succ-badge.on{border-color:var(--navy);box-shadow:0 0 0 2px var(--gold2),0 4px 14px var(--shadow)}
 .succ-em{font-size:1.6rem;line-height:1}
 .succ-badge b{font-size:.95em}
 .succ-badge span{font-size:.78em;color:var(--muted);flex:1}
