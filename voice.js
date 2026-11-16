@@ -78,9 +78,10 @@
     }
   }
   function speakPartsList() {
-    var q = questionText(), ch = currentChoices(), letters = 'ABCD', parts = [t('Question.', 'Question.')];
+    var q = questionText(), ch = currentChoices(), letters = 'ABCD';
+    var parts = [t('La question.', 'The question.')];
     if (q) parts.push(q);
-    ch.forEach(function (c, i) { parts.push(letters.charAt(i) + '.'); parts.push(c); });
+    ch.forEach(function (c, i) { parts.push(t('Réponse ', 'Answer ') + letters.charAt(i) + '.'); parts.push(c); });
     return parts;
   }
   function currentEchoSpoken() {
@@ -144,24 +145,30 @@
     return all.filter(function (v) { return (v.lang || '').toLowerCase().indexOf(prefix) === 0; });
   }
   function scoreVoice(v, lg) {
-    var n = (v.name || '').toLowerCase(), s = 0;
-    if (/vivienne/.test(n)) s += 100;
-    if (/sonia/.test(n)) s += 80;
-    if (/neural|natural|online|premium|enhanced|wavenet/.test(n)) s += 20;
+    var n = (v.name || '').toLowerCase(), s = 0, vl = (v.lang || '').toLowerCase();
     if (lg === 'fr') {
+      if (/vivienne/.test(n)) s += 100;
       if (/denise|brigitte|julie|claire|hortense|audrey|amélie|amelie|léa|lea|marie|pauline/.test(n)) s += 30;
-      if (/fr-fr/.test((v.lang || '').toLowerCase())) s += 8;
+      if (/fr-fr/.test(vl)) s += 8;
     } else {
+      if (/sonia/.test(n)) s += 100;
       if (/aria|libby|google uk|daniel|serena|martha|samantha/.test(n)) s += 20;
-      if (/en-gb/.test((v.lang || '').toLowerCase())) s += 12;
+      if (/en-gb/.test(vl)) s += 12;
     }
+    if (/neural|natural|online|premium|enhanced|wavenet/.test(n)) s += 20;
     return s;
+  }
+  function voiceMatches(v, lg) {
+    if (!v) return false;
+    var vl = (v.lang || '').toLowerCase();
+    if (lg === 'fr') return vl.indexOf('fr') === 0;
+    return vl.indexOf('en') === 0;
   }
   function pickVoice() {
     var lg = lang(), prefsLang = lg === 'en' ? ['en-GB', 'en-US', 'en'] : ['fr-FR', 'fr'];
     var pool = [];
     prefsLang.forEach(function (p) { pool = pool.concat(voicesOf(p.toLowerCase())); });
-    if (!pool.length) try { pool = speechSynthesis.getVoices() || []; } catch (e) { pool = []; }
+    pool = pool.filter(function (v) { return voiceMatches(v, lg); });
     if (!pool.length) return null;
     pool.sort(function (a, b) { return scoreVoice(b, lg) - scoreVoice(a, lg); });
     return pool[0];
@@ -265,15 +272,15 @@
     var q = questionText(), ch = currentChoices();
     if (!q) { afterSpeak(); return; }
     var letters = 'ABCD';
-    var parts = [t('Question.', 'Question.'), q];
-    ch.forEach(function (c, i) { parts.push(letters.charAt(i) + '. ' + c); });
+    var parts = [t('La question.', 'The question.'), q];
+    ch.forEach(function (c, i) { parts.push(t('Réponse ', 'Answer ') + letters.charAt(i) + '. ' + c); });
     var u = new SpeechSynthesisUtterance(parts.join(' '));
     u.lang = recLang();
     u.rate = 1.18;
     u.pitch = 1;
     u.volume = 1;
     var v = pickVoice();
-    if (v) { u.voice = v; u.lang = v.lang || u.lang; }
+    if (v && voiceMatches(v, lang())) { try { u.voice = v; } catch (e) {} }
     echoAll = true;
     echoIndex = 0;
     u.onend = u.onerror = function () { afterSpeak(); };
@@ -318,12 +325,12 @@
         echoIndex = i - 1;
         echoAll = false;
         player.onended = next;
-        player.onerror = function () { fail(new Error('audio')); };
+        player.onerror = function () { next(); };
         player.src = u;
         setSession('playing');
         preloadNext(urls, i);
         var p = player.play();
-        if (p && p.then) p.then(null, function () { fail(new Error('play')); });
+        if (p && p.then) p.then(null, function () { next(); });
       }
       next();
     });
@@ -751,6 +758,7 @@
     setMic: setMic,
     setAuto: setAuto,
     speak: speakQuestion,
+    speakSynth: speakSynth,
     pauseSpeak: pauseSpeak,
     resumeSpeak: resumeSpeak,
     showHeard: showHeard,

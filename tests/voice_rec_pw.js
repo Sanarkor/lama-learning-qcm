@@ -40,12 +40,32 @@ const assert = (c, m) => { if (!c) { throw new Error('FAIL ' + m); } };
       window.SpeechRecognition = window.webkitSpeechRecognition = FakeRec;
       window.__FakeRec = FakeRec;
       const utter = [];
-      window.speechSynthesis = {
-        speak(u) { window.__spoke = (window.__spoke || 0) + 1; utter.push(u); window.__lastUtter = u; setTimeout(function () { if (u.onend) u.onend(); }, 40); },
-        cancel() { window.__cancelled = (window.__cancelled || 0) + 1; },
-        getVoices() { return [{ name: 'Microsoft Vivienne', lang: 'fr-FR', localService: true }]; },
-        addEventListener() {}
-      };
+      const voices = [
+        { name: 'Microsoft Sonia', lang: 'en-GB', localService: true },
+        { name: 'Microsoft Denise', lang: 'fr-FR', localService: true },
+        { name: 'Microsoft Vivienne', lang: 'fr-FR', localService: true }
+      ];
+      const ss = window.speechSynthesis;
+      const origSpeak = ss && ss.speak && ss.speak.bind(ss);
+      const origCancel = ss && ss.cancel && ss.cancel.bind(ss);
+      if (ss) {
+        ss.speak = function (u) {
+          window.__spoke = (window.__spoke || 0) + 1;
+          utter.push(u);
+          window.__lastUtter = u;
+          setTimeout(function () { if (u.onend) u.onend(); }, 40);
+        };
+        ss.cancel = function () { window.__cancelled = (window.__cancelled || 0) + 1; if (origCancel) try { origCancel(); } catch (e) {} };
+        ss.getVoices = function () { return voices; };
+        if (ss.addEventListener) ss.addEventListener('voiceschanged', function () {});
+      } else {
+        window.speechSynthesis = {
+          speak(u) { window.__spoke = (window.__spoke || 0) + 1; utter.push(u); window.__lastUtter = u; setTimeout(function () { if (u.onend) u.onend(); }, 40); },
+          cancel() { window.__cancelled = (window.__cancelled || 0) + 1; },
+          getVoices() { return voices; },
+          addEventListener() {}
+        };
+      }
       navigator.mediaDevices = navigator.mediaDevices || {};
       navigator.mediaDevices.getUserMedia = function (c) {
         window.__gum = (window.__gum || 0) + 1;
@@ -209,7 +229,9 @@ const assert = (c, m) => { if (!c) { throw new Error('FAIL ' + m); } };
       const marked = Array.prototype.map.call(document.querySelectorAll('#app .opt'), function (el) {
         return { j: el.getAttribute('data-j'), cls: el.className };
       });
-      const chosen = marked.filter(function (o) { return /\b(sel|bad)\b/.test(o.cls); });
+      const badOrSel = marked.filter(function (o) { return /\b(sel|bad)\b/.test(o.cls); });
+      const good = marked.filter(function (o) { return /\bgood\b/.test(o.cls); });
+      const chosen = badOrSel.length ? badOrSel : good;
       return {
         sel: chosen.length > 0 || !!(document.getElementById('next') || document.querySelector('.expl')),
         j: chosen.length ? chosen[0].j : null,
@@ -389,7 +411,38 @@ const assert = (c, m) => { if (!c) { throw new Error('FAIL ' + m); } };
     assert(after.playing >= 1, 'still playing in background: ' + JSON.stringify(after));
   });
 
+  await test('FR fallback synth uses fr-FR, never Sonia; letter clips are French phrases', async (page) => {
+    await page.goto('http://127.0.0.1:8777/#/entrainement?m=cg', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForSelector('#go', { timeout: 20000 });
+    await page.click('#go');
+    await page.waitForSelector('#vspeak', { timeout: 15000 });
+    const dbg = await page.evaluate(() => {
+      try {
+        var fn = window.LLAMA_VOICE && window.LLAMA_VOICE.speakSynth;
+        if (fn) fn();
+        var x = window.__lastUtter || {};
+        return {
+          has: typeof fn,
+          spoke: window.__spoke || 0,
+          lang: x.lang,
+          voice: x.voice && x.voice.name,
+          vlang: x.voice && x.voice.lang,
+          text: x.text || '',
+          q: (document.querySelector('#app .q') || {}).textContent || ''
+        };
+      } catch (e) { return { err: String(e), stack: e.stack }; }
+    });
+    assert(!dbg.err, 'speakSynth threw: ' + JSON.stringify(dbg));
+    const u = dbg;
+    assert(u.lang === 'fr-FR', 'utterance lang must be fr-FR, got ' + JSON.stringify(u));
+    assert(!/sonia/i.test(u.voice || ''), 'must not pick Sonia in FR mode: ' + JSON.stringify(u));
+    assert(/fr/i.test(u.vlang || '') || !u.voice, 'voice lang must be French: ' + JSON.stringify(u));
+    assert(/La question/i.test(u.text || ''), 'FR intro phrase: ' + (u.text || ''));
+    assert(/R[ée]ponse A/i.test(u.text || ''), 'FR letter phrase: ' + (u.text || ''));
+  });
+
   await browser.close();
+
   console.log('\n' + passed + ' passed, ' + failed + ' failed');
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

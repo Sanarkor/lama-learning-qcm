@@ -18,9 +18,11 @@ vm.runInContext(fs.readFileSync(path.join(ROOT, 'data.js'), 'utf8'), ctx);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'data_en.js'), 'utf8'), ctx);
 const D = ctx.window.QCM_DATA;
 const X = ctx.window.QCM_EN;
+/* Textes assez français / anglais pour que la voix multilingue ne bascule pas de langue
+   sur un mot isolé (« Question. », « A. »). */
 const letters = {
-  fr: { Q: 'Question.', A: 'A.', B: 'B.', C: 'C.', D: 'D.' },
-  en: { Q: 'Question.', A: 'A.', B: 'B.', C: 'C.', D: 'D.' }
+  fr: { Q: 'La question.', A: 'Réponse A.', B: 'Réponse B.', C: 'Réponse C.', D: 'Réponse D.' },
+  en: { Q: 'The question.', A: 'Answer A.', B: 'Answer B.', C: 'Answer C.', D: 'Answer D.' }
 };
 const man = {
   v: 1,
