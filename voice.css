@@ -1,0 +1,17 @@
+/* Mode vocal — barre de lecture / réponse, tous les écrans */
+.vbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:4px 0 12px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.vbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:6px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:.88em;font-weight:600;cursor:pointer}
+.vbtn svg{width:18px;height:18px;flex:0 0 auto}
+.vbtn:hover{border-color:var(--navy)}
+.vbtn.on{background:var(--navy);border-color:var(--navy);color:#fff}
+html.dark .vbtn.on{background:var(--navy2);border-color:var(--navy2)}
+.vbtn.vmic.on{box-shadow:0 0 0 3px rgba(37,99,235,.22)}
+.vbtn.off,.vbtn[aria-disabled="true"]{opacity:.55;cursor:not-allowed}
+.vheard{flex:1 1 100%;min-height:1.25em;font-size:.85em;color:var(--muted);line-height:1.3}
+.vheard.v-listen{color:var(--navy)}
+.vheard.v-none,.vheard.v-ambiguous,.vheard.v-warn{color:var(--ko)}
+.vheard.v-ok,.vheard.v-letter,.vheard.v-content,.vheard.v-tf,.vheard.v-typed{color:var(--ok)}
+@media (max-width:400px){
+  .vbtn{min-height:38px;padding:6px 9px;font-size:.82em}
+  .vbtn span{max-width:11em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}

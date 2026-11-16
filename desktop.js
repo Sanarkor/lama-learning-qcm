@@ -194,7 +194,7 @@
     if (show) {
       var rows = [['1 – 4 ' + t('ou', 'or') + ' A – D', t('répondre (entraînement) ou cocher / décocher (examen)', 'answer (practice) or select / clear (exam)')], ['0', t('« Je ne sais pas » (entraînement)', '“I don\'t know” (practice)')],
         [t('Entrée', 'Enter'), t('question suivante ; lance la série ou l\'examen sur la page de choix', 'next question; starts the set or exam on the setup page')], ['→ / ←', t('question suivante / précédente (examen)', 'next / previous question (exam)')],
-        ['H', t('afficher / masquer cette aide', 'show / hide this help')], [t('Échap', 'Esc'), t('fermer', 'close')]];
+        ['H', t('afficher / masquer cette aide', 'show / hide this help')], [t('Échap', 'Esc'), t('fermer', 'close')], [t('Mode vocal', 'Voice mode'), t('boutons sous la question : lire, lecture auto, réponse à la voix (lettre ou libellé du choix)', 'buttons under the question: read, auto-read, answer by voice (letter or choice wording)')]];
       help.setAttribute('aria-label', t('Raccourcis clavier', 'Keyboard shortcuts'));
       help.innerHTML = '<div class="dk-hbox"><div class="dk-htitle">' + t('Raccourcis clavier', 'Keyboard shortcuts') + '</div><table>' + rows.map(function (r) { return '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>'; }).join('') + '</table><button type="button" class="btn" id="dk-hclose">' + t('Fermer', 'Close') + '</button></div>';
     }

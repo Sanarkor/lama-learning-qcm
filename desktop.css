@@ -304,3 +304,11 @@ html.dk:not(.dark) #dk-side{border-right:1px solid #11152a;box-shadow:4px 0 18px
 html.dk:not(.dark) #dk-side .dk-l.dk-on{background:rgba(255,255,255,.12);color:#fff;border-left-color:#8f9be0;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
 html.dk:not(.dark) #dk-side .dk-n{background:#5566c0}
 html.dk:not(.dark) #dk-side .dk-brand{box-shadow:0 2px 8px rgba(0,0,0,.3)}
+
+/* Mode vocal (PC) : plus carré, aligné sur le style tableau de bord */
+html.dk .vbar{border-radius:8px;padding:8px 12px;margin:0 0 16px;background:var(--card);border-color:var(--line);box-shadow:0 1px 4px rgba(0,0,0,.04);gap:8px}
+html.dk .vbtn{border-radius:8px;min-height:38px;font-family:"Geist",system-ui,sans-serif;letter-spacing:-.01em}
+html.dk .vbtn.on{background:var(--navy2,#1e3a8a);border-color:var(--navy2,#1e3a8a);color:#fff}
+html.dk .vbtn.vmic.on{box-shadow:0 0 0 3px rgba(67,82,160,.18)}
+html.dk .vheard{font-size:.82em;letter-spacing:.01em}
+html.dk.dark .vbar{box-shadow:none}
