@@ -1,12 +1,16 @@
-/* Llama Learning — mode vocal : lecture de la question (speechSynthesis)
-   et réponse à la voix (SpeechRecognition). Préférences : lamaqcm-voice. */
+/* Llama Learning — mode vocal.
+   Lecture : MP3 Vivienne / Sonia (audio/) si présents, sinon speechSynthesis.
+   Réponse : Web Speech API, démarrage sur geste, relance auto, pause pendant la lecture,
+   « maintenir pour parler », messages d'état explicites. Préférences : lamaqcm-voice. */
 (function () {
   'use strict';
   var KEY = 'lamaqcm-voice';
   var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
   var prefs = load();
-  var rec = null, recWanted = false, recStarting = false, restartT = null;
-  var speaking = false, lastSpeakKey = '', heardT = null;
+  var rec = null, recWanted = false, recStarting = false, recPaused = false, restartT = null;
+  var speaking = false, lastSpeakKey = '', heardT = null, armed = false, pttHeld = false;
+  var mediaStream = null, player = null, preloader = null, manifest = null, manPromise = null;
+  var speakPaused = false, playQueue = null, playResolve = null, playReject = null;
 
   function en() { return document.documentElement.classList.contains('en'); }
   function t(fr, ev) { return en() ? ev : fr; }
@@ -14,9 +18,26 @@
   function recLang() { return en() ? 'en-GB' : 'fr-FR'; }
   function route() { return (window.LLAMA && window.LLAMA.route) ? window.LLAMA.route() : location.hash.replace(/^#\/?/, '').split('?')[0]; }
   function onQuiz() { return !!document.querySelector('#app .opts .opt'); }
-  function canAnswer() {
-    var b = document.querySelector('#app .opt');
-    return !!(b && !b.disabled);
+  function canAnswer() { var b = document.querySelector('#app .opt'); return !!(b && !b.disabled); }
+
+  function ua() { return navigator.userAgent || ''; }
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(ua()) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+  function isIOSNonSafari() { return isIOS() && /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua()); }
+  function isSecure() { return location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1'; }
+  function recSupport() {
+    if (!isSecure()) return { ok: false, reason: 'https' };
+    if (isIOSNonSafari()) return { ok: false, reason: 'ios-browser' };
+    if (!Rec) return { ok: false, reason: 'none' };
+    return { ok: true };
+  }
+  function supported() { return recSupport().ok; }
+  function supportMsg() {
+    var r = recSupport().reason;
+    if (r === 'https') return t('Le microphone nécessite une connexion sécurisée (HTTPS).', 'The microphone requires a secure connection (HTTPS).');
+    if (r === 'ios-browser') return t('Sur iPhone et iPad, la réponse vocale fonctionne dans Safari (pas dans Chrome ni Firefox).', 'On iPhone and iPad, voice answering works in Safari (not in Chrome or Firefox).');
+    return t('Navigateur non compatible avec la reconnaissance vocale. Utilisez Chrome, Edge ou Safari, en HTTPS.', 'This browser is not compatible with speech recognition. Use Chrome, Edge or Safari, over HTTPS.');
   }
 
   function load() {
@@ -25,44 +46,6 @@
     return s;
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify({ mic: !!prefs.mic, auto: !!prefs.auto })); } catch (e) {} }
-
-  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-
-  /* ---------- Voix de synthèse ---------- */
-  function voicesOf(prefix) {
-    var all = [];
-    try { all = speechSynthesis.getVoices() || []; } catch (e) { return []; }
-    prefix = prefix.toLowerCase();
-    return all.filter(function (v) { return (v.lang || '').toLowerCase().indexOf(prefix) === 0; });
-  }
-  function scoreVoice(v, lg) {
-    var n = (v.name || '').toLowerCase(), s = 0;
-    if (/vivienne/.test(n)) s += 100;
-    if (/neural|natural|online|premium|enhanced|wavenet/.test(n)) s += 20;
-    if (lg === 'fr') {
-      if (/denise|brigitte|julie|claire|hortense|audrey|amélie|amelie|léa|lea|marie|pauline/.test(n)) s += 30;
-      if (/thomas|google/.test(n)) s += 10;
-      if (/fr-fr/.test((v.lang || '').toLowerCase())) s += 8;
-    } else {
-      if (/aria|sonia|libby|google uk|daniel|serena|martha|samantha|samantha|google us/.test(n)) s += 20;
-      if (/en-gb/.test((v.lang || '').toLowerCase())) s += 12;
-      if (/en-us/.test((v.lang || '').toLowerCase())) s += 6;
-    }
-    if (v.localService) s += 2;
-    return s;
-  }
-  function pickVoice() {
-    var lg = lang(), prefsLang = lg === 'en' ? ['en-GB', 'en-US', 'en'] : ['fr-FR', 'fr'];
-    var pool = [];
-    prefsLang.forEach(function (p) { pool = pool.concat(voicesOf(p.toLowerCase())); });
-    if (!pool.length) try { pool = speechSynthesis.getVoices() || []; } catch (e) { pool = []; }
-    if (!pool.length) return null;
-    pool.sort(function (a, b) { return scoreVoice(b, lg) - scoreVoice(a, lg); });
-    return pool[0];
-  }
-  if (typeof speechSynthesis !== 'undefined' && speechSynthesis.addEventListener) {
-    speechSynthesis.addEventListener('voiceschanged', function () {});
-  }
 
   function choiceText(btn) {
     var span = btn.querySelector('span:not(.l):not(.ofw)');
@@ -82,46 +65,255 @@
     return q ? (q.textContent || '').trim() : '';
   }
   function speakKey() { return questionText() + ' | ' + currentChoices().join(' | '); }
-
-  function cancelSpeak() {
-    speaking = false;
-    try { if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel(); } catch (e) {}
+  function currentItem() {
+    var a = window.LLAMA && window.LLAMA.cur && window.LLAMA.cur();
+    if (!a) return null;
+    var r = route();
+    if (r === 'session' && a.P && a.P.list) return a.P.list[a.P.i] || null;
+    if (r === 'epreuve' && a.E && a.E.list) return a.E.list[a.E.i] || null;
+    if (r === 'vitesse-run' && a.V && a.V.queue) return a.V.queue[a.V.i] || null;
+    return null;
   }
 
-  function speakQuestion() {
+  /* ---------- Manifest MP3 (Vivienne / Sonia) ---------- */
+  function loadManifest() {
+    if (manifest !== null) return Promise.resolve(manifest);
+    if (manPromise) return manPromise;
+    manPromise = fetch('audio/manifest.json', { cache: 'default' }).then(function (r) {
+      return r.ok ? r.json() : null;
+    }).then(function (j) { manifest = j || false; return manifest; }).catch(function () { manifest = false; return manifest; });
+    return manPromise;
+  }
+  loadManifest();
+
+  function clipUrl(h) { return h ? ('audio/' + h + '.mp3') : null; }
+  function clipList() {
+    var man = manifest, it = currentItem(), lg = lang();
+    if (!man || !it || !it.id || !it.o) return null;
+    var qh = man.q && man.q[lg] && man.q[lg][it.id];
+    var ch = man.c && man.c[lg] && man.c[lg][it.id];
+    var L = man.letters && man.letters[lg];
+    if (!qh || !ch || !L || ch.length < 4) return null;
+    var urls = [clipUrl(L.Q), clipUrl(qh)];
+    var letters = 'ABCD';
+    for (var i = 0; i < 4; i++) {
+      urls.push(clipUrl(L[letters.charAt(i)]));
+      urls.push(clipUrl(ch[it.o[i]]));
+    }
+    if (urls.some(function (u) { return !u; })) return null;
+    return urls;
+  }
+
+  /* ---------- Voix de secours (speechSynthesis) ---------- */
+  function voicesOf(prefix) {
+    var all = [];
+    try { all = speechSynthesis.getVoices() || []; } catch (e) { return []; }
+    prefix = prefix.toLowerCase();
+    return all.filter(function (v) { return (v.lang || '').toLowerCase().indexOf(prefix) === 0; });
+  }
+  function scoreVoice(v, lg) {
+    var n = (v.name || '').toLowerCase(), s = 0;
+    if (/vivienne/.test(n)) s += 100;
+    if (/sonia/.test(n)) s += 80;
+    if (/neural|natural|online|premium|enhanced|wavenet/.test(n)) s += 20;
+    if (lg === 'fr') {
+      if (/denise|brigitte|julie|claire|hortense|audrey|amélie|amelie|léa|lea|marie|pauline/.test(n)) s += 30;
+      if (/fr-fr/.test((v.lang || '').toLowerCase())) s += 8;
+    } else {
+      if (/aria|libby|google uk|daniel|serena|martha|samantha/.test(n)) s += 20;
+      if (/en-gb/.test((v.lang || '').toLowerCase())) s += 12;
+    }
+    return s;
+  }
+  function pickVoice() {
+    var lg = lang(), prefsLang = lg === 'en' ? ['en-GB', 'en-US', 'en'] : ['fr-FR', 'fr'];
+    var pool = [];
+    prefsLang.forEach(function (p) { pool = pool.concat(voicesOf(p.toLowerCase())); });
+    if (!pool.length) try { pool = speechSynthesis.getVoices() || []; } catch (e) { pool = []; }
+    if (!pool.length) return null;
+    pool.sort(function (a, b) { return scoreVoice(b, lg) - scoreVoice(a, lg); });
+    return pool[0];
+  }
+  if (typeof speechSynthesis !== 'undefined' && speechSynthesis.addEventListener) {
+    speechSynthesis.addEventListener('voiceschanged', function () {});
+  }
+
+  function sameSrc(el, url) {
+    if (!el || !el.src || !url) return false;
+    try { return el.src === new URL(url, location.href).href; } catch (e) { return el.src.indexOf(url) !== -1; }
+  }
+  function setSession(state) {
+    if (!('mediaSession' in navigator)) return;
+    try {
+      var title = questionText() || t('Lecture de la question', 'Question read-aloud');
+      if (title.length > 80) title = title.slice(0, 77) + '\u2026';
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: title,
+        artist: 'Llama Learning',
+        album: t('Lecture \u00e0 voix haute', 'Read-aloud')
+      });
+      navigator.mediaSession.playbackState = state || 'none';
+    } catch (e) {}
+  }
+  function bindSession() {
+    if (!('mediaSession' in navigator) || bindSession.done) return;
+    bindSession.done = true;
+    try {
+      navigator.mediaSession.setActionHandler('play', function () { resumeSpeak(); });
+      navigator.mediaSession.setActionHandler('pause', function () { pauseSpeak(); });
+      navigator.mediaSession.setActionHandler('stop', function () { cancelSpeak(); afterSpeak(); });
+    } catch (e) {}
+  }
+  function preloadNext(urls, i) {
+    var u = urls && urls[i];
+    if (!u) return;
+    try {
+      if (!preloader) {
+        preloader = new Audio();
+        preloader.preload = 'auto';
+        preloader.setAttribute('playsinline', 'true');
+      }
+      if (!sameSrc(preloader, u)) {
+        preloader.src = u;
+        try { preloader.load(); } catch (e2) {}
+      }
+    } catch (e) {}
+  }
+  function stopPlayer() {
+    speakPaused = false;
+    playQueue = null;
+    playResolve = null;
+    playReject = null;
+    if (player) {
+      try { player.onended = player.onerror = null; player.pause(); player.removeAttribute('src'); player.load(); } catch (e) {}
+      player = null;
+    }
+    if (preloader) {
+      try { preloader.pause(); preloader.removeAttribute('src'); } catch (e) {}
+      preloader = null;
+    }
+    try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'; } catch (e) {}
+  }
+  function cancelSpeak() {
+    speaking = false;
+    stopPlayer();
+    try { if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel(); } catch (e) {}
+  }
+  function pauseSpeak() {
+    if (!speaking || speakPaused) return;
+    speakPaused = true;
+    try { if (player) player.pause(); } catch (e) {}
+    try { if (typeof speechSynthesis !== 'undefined') speechSynthesis.pause(); } catch (e) {}
+    setSession('paused');
+  }
+  function resumeSpeak() {
+    if (!speaking || !speakPaused) return;
+    speakPaused = false;
+    if (player) {
+      var p = player.play();
+      if (p && p.then) p.then(null, function () {});
+      setSession('playing');
+      return;
+    }
+    try { if (typeof speechSynthesis !== 'undefined') speechSynthesis.resume(); } catch (e) {}
+    setSession('playing');
+  }
+
+  function afterSpeak() {
+    speaking = false;
+    if (prefs.mic && recWanted && !pttHeld) recResume();
+  }
+
+  function speakSynth() {
     if (typeof speechSynthesis === 'undefined') {
       showMsg(t('Lecture à voix haute non disponible dans ce navigateur.', 'Read-aloud is not available in this browser.'), 'warn');
+      afterSpeak();
       return;
     }
     var q = questionText(), ch = currentChoices();
-    if (!q) return;
-    cancelSpeak();
-    recPause();
+    if (!q) { afterSpeak(); return; }
     var letters = 'ABCD';
     var parts = [t('Question.', 'Question.'), q];
     ch.forEach(function (c, i) { parts.push(letters.charAt(i) + '. ' + c); });
     var u = new SpeechSynthesisUtterance(parts.join(' '));
     u.lang = recLang();
-    u.rate = 1;
+    u.rate = 1.18;
     u.pitch = 1;
     u.volume = 1;
     var v = pickVoice();
     if (v) { u.voice = v; u.lang = v.lang || u.lang; }
-    u.onstart = function () { speaking = true; };
-    u.onend = u.onerror = function () { speaking = false; if (prefs.mic && recWanted) recResume(); };
+    u.onend = u.onerror = function () { afterSpeak(); };
+    try { speechSynthesis.speak(u); } catch (e) { afterSpeak(); }
+  }
+
+  function playUrls(urls) {
+    return new Promise(function (resolve, reject) {
+      var i = 0;
+      stopPlayer();
+      playQueue = urls;
+      playResolve = resolve;
+      playReject = reject;
+      bindSession();
+      player = new Audio();
+      player.preload = 'auto';
+      player.setAttribute('playsinline', 'true');
+      function fail(err) {
+        if (!playReject) return;
+        var r = playReject;
+        playResolve = playReject = null;
+        playQueue = null;
+        r(err || new Error('audio'));
+      }
+      function next() {
+        if (!player || playQueue !== urls) { fail(new Error('cancel')); return; }
+        if (i >= urls.length) {
+          playQueue = null;
+          var r = playResolve;
+          playResolve = playReject = null;
+          if (r) r();
+          return;
+        }
+        var u = urls[i++];
+        player.onended = next;
+        player.onerror = function () { fail(new Error('audio')); };
+        player.src = u;
+        setSession('playing');
+        preloadNext(urls, i);
+        var p = player.play();
+        if (p && p.then) p.then(null, function () { fail(new Error('play')); });
+      }
+      next();
+    });
+  }
+
+  function speakQuestion() {
+    var q = questionText();
+    if (!q) return;
+    cancelSpeak();
+    recPause();
     speaking = true;
     lastSpeakKey = speakKey();
-    try { speechSynthesis.speak(u); } catch (e) { speaking = false; recResume(); }
+    loadManifest().then(function () {
+      var urls = clipList();
+      if (urls && urls.length) {
+        return playUrls(urls).then(function () { afterSpeak(); }, function () {
+          if (!speaking) return;
+          stopPlayer();
+          speakSynth();
+        });
+      }
+      speakSynth();
+    });
   }
 
   /* ---------- Reconnaissance ---------- */
-  function supported() { return !!Rec; }
-
   function showHeard(text, kind) {
     var el = document.getElementById('vheard');
     if (!el) return;
     el.className = 'vheard' + (kind ? ' v-' + kind : '');
     if (!text && kind === 'listen') el.textContent = t('Écoute…', 'Listening…');
+    else if (kind === 'hold') el.textContent = t('Maintenez le bouton pour parler…', 'Hold the button to talk…');
+    else if (kind === 'tap') el.textContent = t('Touchez « Réponse vocale » pour activer le micro.', 'Tap “Voice answer” to turn the microphone on.');
     else if (kind === 'none' || kind === 'ambiguous') {
       el.textContent = (kind === 'ambiguous'
         ? t('Ambigu : « ', 'Ambiguous: “')
@@ -129,19 +321,21 @@
     } else if (kind === 'ok' || kind === 'letter' || kind === 'content' || kind === 'tf' || kind === 'typed') {
       el.textContent = t('J\'entends : ', 'I hear: ') + text;
     } else if (text) el.textContent = t('J\'entends : ', 'I hear: ') + text;
-    else el.textContent = prefs.mic ? t('Écoute…', 'Listening…') : '';
+    else if (prefs.mic && recWanted && !speaking) el.textContent = t('Écoute…', 'Listening…');
+    else el.textContent = '';
     clearTimeout(heardT);
     if (kind === 'none' || kind === 'ambiguous') {
-      heardT = setTimeout(function () { if (prefs.mic) showHeard('', 'listen'); else showHeard('', ''); }, 2800);
+      heardT = setTimeout(function () {
+        if (prefs.mic && recWanted) showHeard('', 'listen');
+        else if (prefs.mic && !armed) showHeard('', 'tap');
+        else showHeard('', '');
+      }, 2800);
     }
   }
 
   function showMsg(msg, kind) {
     var el = document.getElementById('vheard');
     if (el) { el.className = 'vheard' + (kind ? ' v-' + kind : ''); el.textContent = msg; }
-    else if (typeof window !== 'undefined') {
-      try { /* toast de l'appli si déjà affiché */ } catch (e) {}
-    }
   }
 
   function applyMatch(res) {
@@ -155,7 +349,6 @@
     showHeard(res.heard, res.reason || 'ok');
     recPause();
     btn.click();
-    /* la page se réaffiche : llama:render relance l'écoute si une nouvelle question est ouverte */
   }
 
   function onResult(ev) {
@@ -172,12 +365,12 @@
     var choices = currentChoices();
     var M = window.LLAMA_VOICE_MATCH;
     if (!M) return;
-    var res = M.matchVoiceAnswer(finalTxt, choices, lang());
-    applyMatch(res);
+    applyMatch(M.matchVoiceAnswer(finalTxt, choices, lang()));
   }
 
   function recStop(clearWanted) {
     if (clearWanted) recWanted = false;
+    recPaused = false;
     clearTimeout(restartT);
     if (!rec) return;
     try { rec.onend = rec.onerror = rec.onresult = null; rec.abort(); } catch (e) {}
@@ -185,8 +378,9 @@
     recStarting = false;
   }
 
+  /* Pause sans abandonner l'intention d'écouter (ex. pendant la lecture). */
   function recPause() {
-    recWanted = false;
+    recPaused = true;
     clearTimeout(restartT);
     if (rec) {
       try { rec.onend = rec.onerror = rec.onresult = null; rec.stop(); } catch (e) { try { rec.abort(); } catch (e2) {} }
@@ -196,19 +390,33 @@
   }
 
   function recResume() {
-    if (prefs.mic && onQuiz() && canAnswer() && !speaking) startRec();
+    recPaused = false;
+    if (prefs.mic && recWanted && onQuiz() && canAnswer() && !speaking && !pttHeld) startRec();
+  }
+
+  function scheduleRestart() {
+    clearTimeout(restartT);
+    if (!recWanted || !prefs.mic || speaking || recPaused || pttHeld || !canAnswer()) return;
+    /* iOS : relancer tout de suite dans onend (un délai casse le geste). Ailleurs, un court délai suffit. */
+    if (isIOS()) startRec();
+    else restartT = setTimeout(function () { if (recWanted && prefs.mic && !speaking && !recPaused) startRec(); }, 120);
   }
 
   function startRec() {
-    if (!supported()) return;
+    var sup = recSupport();
+    if (!sup.ok) return;
+    if (!prefs.mic || !onQuiz() || !canAnswer() || speaking || pttHeld && !recWanted) {
+      /* PTT hold sets pttHeld and still wants start — allow when pttHeld if we call startPtt */
+    }
     if (!prefs.mic || !onQuiz() || !canAnswer() || speaking) return;
     recWanted = true;
+    recPaused = false;
     if (rec || recStarting) return;
     recStarting = true;
     try {
       rec = new Rec();
       rec.lang = recLang();
-      rec.continuous = true;
+      rec.continuous = !isIOS() && !pttHeld;
       rec.interimResults = true;
       rec.maxAlternatives = 1;
       rec.onresult = onResult;
@@ -216,49 +424,145 @@
         recStarting = false;
         var err = (e && e.error) || '';
         if (err === 'not-allowed' || err === 'service-not-allowed') {
-          prefs.mic = false; save(); recStop(true); paint();
-          showMsg(t('Microphone refusé. Autorisez-le dans le navigateur pour répondre à la voix.', 'Microphone denied. Allow it in the browser to answer by voice.'), 'warn');
+          prefs.mic = false; armed = false; save(); recStop(true); stopStream(); paint();
+          showMsg(t('Micro refusé. Autorisez le microphone dans les réglages du navigateur pour répondre à la voix.', 'Microphone denied. Allow the microphone in the browser settings to answer by voice.'), 'warn');
           return;
         }
-        if (err === 'no-speech' || err === 'aborted') return;
+        if (err === 'no-speech') {
+          /* Certains navigateurs n'enchaînent pas toujours un onend après no-speech. */
+          try { if (rec) { rec.onend = rec.onerror = rec.onresult = null; rec.abort(); } } catch (e2) {}
+          rec = null; recStarting = false;
+          scheduleRestart();
+          return;
+        }
+        if (err === 'aborted') return;
         if (err === 'network') showMsg(t('Reconnaissance vocale : problème réseau.', 'Speech recognition: network problem.'), 'warn');
+        if (err === 'not-supported' || err === 'audio-capture') {
+          showMsg(supportMsg(), 'warn');
+        }
       };
       rec.onend = function () {
         rec = null; recStarting = false;
-        if (recWanted && prefs.mic && canAnswer() && !speaking) {
-          restartT = setTimeout(function () { if (recWanted && prefs.mic) startRec(); }, 250);
-        }
+        if (pttHeld) return;
+        if (recWanted && prefs.mic && canAnswer() && !speaking && !recPaused) scheduleRestart();
       };
       rec.start();
       recStarting = false;
+      armed = true;
       showHeard('', 'listen');
     } catch (e) {
       recStarting = false;
       rec = null;
-      prefs.mic = false; save(); paint();
-      showMsg(t('Impossible de démarrer le microphone.', 'Could not start the microphone.'), 'warn');
+      showMsg(t('Touchez « Réponse vocale » ou maintenez « Parler » pour lancer le micro.', 'Tap “Voice answer” or hold “Talk” to start the microphone.'), 'tap');
     }
   }
 
-  function setMic(on) {
-    prefs.mic = !!on; save();
-    if (!prefs.mic) { recStop(true); cancelSpeak(); showHeard('', ''); }
-    else {
-      if (!supported()) {
-        prefs.mic = false; save();
-        showMsg(t('La reconnaissance vocale n\'est pas disponible dans ce navigateur (utilisez Chrome, Edge ou Safari, en HTTPS).', 'Speech recognition is not available in this browser (use Chrome, Edge or Safari, over HTTPS).'), 'warn');
-      } else if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        prefs.mic = false; save();
-        showMsg(t('Le microphone nécessite une connexion sécurisée (HTTPS).', 'The microphone requires a secure connection (HTTPS).'), 'warn');
-      } else startRec();
+  function stopStream() {
+    if (mediaStream) {
+      try { mediaStream.getTracks().forEach(function (tr) { tr.stop(); }); } catch (e) {}
+      mediaStream = null;
     }
-    paint();
+  }
+
+  function requestMic() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.resolve(null);
+    if (mediaStream && mediaStream.getTracks().some(function (tr) { return tr.readyState === 'live'; })) {
+      return Promise.resolve(mediaStream);
+    }
+    return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) { mediaStream = s; return s; });
+  }
+
+  function setMic(on) {
+    if (on) {
+      var sup = recSupport();
+      if (!sup.ok) {
+        prefs.mic = false; save(); paint();
+        showMsg(supportMsg(), 'warn');
+        return;
+      }
+      prefs.mic = true; save(); paint();
+      recWanted = true; armed = true;
+      requestMic().then(function () {
+        startRec();
+      }, function () {
+        prefs.mic = false; armed = false; recWanted = false; save(); paint();
+        showMsg(t('Micro refusé. Autorisez le microphone dans les réglages du navigateur pour répondre à la voix.', 'Microphone denied. Allow the microphone in the browser settings to answer by voice.'), 'warn');
+      });
+    } else {
+      prefs.mic = false; recWanted = false; armed = false; save();
+      recStop(true); cancelSpeak(); stopStream(); showHeard('', ''); paint();
+    }
   }
 
   function setAuto(on) {
     prefs.auto = !!on; save(); paint();
     if (prefs.auto && onQuiz() && canAnswer()) speakQuestion();
-    else if (!prefs.auto) { /* on laisse une lecture en cours se terminer, ou on l'arrête */ }
+  }
+
+  /* Maintenir pour parler : un geste utilisateur à chaque fois (fiable sur iOS). */
+  function pttDown(ev) {
+    if (ev && ev.preventDefault) ev.preventDefault();
+    if (!supported()) { showMsg(supportMsg(), 'warn'); return; }
+    if (!prefs.mic) { setMic(true); }
+    pttHeld = true;
+    recWanted = true; armed = true;
+    recPause();
+    recPaused = false;
+    requestMic().then(function () {
+      if (!pttHeld) return;
+      /* start even though pttHeld : bypass startRec early exit by calling internally */
+      if (speaking) { cancelSpeak(); speaking = false; }
+      startRecPtt();
+      var b = document.getElementById('vptt'); if (b) b.classList.add('hold');
+      showHeard('', 'listen');
+    }, function () {
+      pttHeld = false;
+      showMsg(t('Micro refusé. Autorisez le microphone dans les réglages du navigateur.', 'Microphone denied. Allow the microphone in the browser settings.'), 'warn');
+    });
+  }
+  function startRecPtt() {
+    if (!Rec || rec || recStarting) {
+      if (rec && pttHeld) return;
+    }
+    try {
+      if (rec) recStop(false);
+      recWanted = true;
+      rec = new Rec();
+      rec.lang = recLang();
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+      rec.onresult = onResult;
+      rec.onerror = function (e) {
+        var err = (e && e.error) || '';
+        if (err === 'not-allowed' || err === 'service-not-allowed') {
+          pttHeld = false; prefs.mic = false; save(); recStop(true); stopStream(); paint();
+          showMsg(t('Micro refusé. Autorisez le microphone dans les réglages du navigateur.', 'Microphone denied. Allow the microphone in the browser settings.'), 'warn');
+        }
+      };
+      rec.onend = function () { rec = null; recStarting = false; };
+      rec.start();
+      recStarting = false;
+    } catch (e) {
+      showMsg(t('Impossible de démarrer le microphone.', 'Could not start the microphone.'), 'warn');
+    }
+  }
+  function pttUp(ev) {
+    if (ev && ev.preventDefault) ev.preventDefault();
+    var b = document.getElementById('vptt'); if (b) b.classList.remove('hold');
+    if (!pttHeld) return;
+    pttHeld = false;
+    if (rec) {
+      try { rec.stop(); } catch (e) { try { rec.abort(); } catch (e2) {} }
+    }
+    /* après un appui, on reprend l'écoute continue si elle est activée (sauf iOS : on attend le prochain geste) */
+    if (prefs.mic && !isIOS()) {
+      recWanted = true;
+      setTimeout(function () { if (prefs.mic && !pttHeld && !speaking) recResume(); }, 200);
+    } else if (prefs.mic && isIOS()) {
+      recWanted = true;
+      showHeard('', 'hold');
+    }
   }
 
   /* ---------- Barre d'interface ---------- */
@@ -271,29 +575,58 @@
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5v5h3.2L12 19V5L7.2 9.5H4Z" fill="currentColor"/><path d="M16 8.2a5 5 0 0 1 0 7.6M18.7 5.6a8.2 8.2 0 0 1 0 12.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
   }
 
+  function hintText() {
+    return t('Dites « Réponse A », « Réponse B », « Réponse C » ou « Réponse D »', 'Say “Answer A”, “Answer B”, “Answer C” or “Answer D”');
+  }
+
   function barHTML() {
     var uns = !supported();
+    var micOn = !!prefs.mic;
     return '<div class="vbar" id="vbar">' +
       '<button type="button" class="vbtn" id="vspeak" title="' + t('Lire la question et les choix', 'Read the question and choices') + '">' + icoSpeak() + '<span>' + t('Lire', 'Read') + '</span></button>' +
       '<button type="button" class="vbtn' + (prefs.auto ? ' on' : '') + '" id="vauto" aria-pressed="' + !!prefs.auto + '" title="' + t('Lire automatiquement chaque question', 'Automatically read each question') + '"><span>' + t('Auto', 'Auto') + '</span></button>' +
-      '<button type="button" class="vbtn vmic' + (prefs.mic ? ' on' : '') + (uns ? ' off' : '') + '" id="vmic" aria-pressed="' + !!prefs.mic + '"' + (uns ? ' aria-disabled="true"' : '') + ' title="' + (uns ? t('Reconnaissance vocale non disponible dans ce navigateur', 'Speech recognition not available in this browser') : t('Répondre à la voix (lettre ou contenu du choix)', 'Answer by voice (letter or choice wording)')) + '">' + icoMic(prefs.mic) + '<span>' + t('Réponse vocale', 'Voice answer') + '</span></button>' +
+      '<button type="button" class="vbtn vmic' + (micOn ? ' on' : '') + (uns ? ' off' : '') + '" id="vmic" aria-pressed="' + micOn + '"' + (uns ? ' aria-disabled="true"' : '') + ' title="' + (uns ? supportMsg() : t('Répondre à la voix (lettre ou contenu du choix)', 'Answer by voice (letter or choice wording)')) + '">' + icoMic(micOn) + '<span>' + t('Réponse vocale', 'Voice answer') + '</span></button>' +
+      (uns ? '' : '<button type="button" class="vbtn vptt" id="vptt">' + t('Maintenir pour parler', 'Hold to talk') + '</button>') +
+      (micOn && !uns ? '<p class="vhint" id="vhint">' + hintText() + '</p>' : '') +
       '<div class="vheard" id="vheard" aria-live="polite"></div></div>';
   }
 
+  function bindPtt(btn) {
+    if (!btn) return;
+    btn.addEventListener('pointerdown', pttDown);
+    btn.addEventListener('pointerup', pttUp);
+    btn.addEventListener('pointercancel', pttUp);
+    btn.addEventListener('lostpointercapture', pttUp);
+    btn.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  }
+
   function bindBar(root) {
+    if (!root) return;
     var sp = root.querySelector('#vspeak'); if (sp) sp.onclick = function () { speakQuestion(); };
     var au = root.querySelector('#vauto'); if (au) au.onclick = function () { setAuto(!prefs.auto); };
-    var mi = root.querySelector('#vmic'); if (mi) mi.onclick = function () { setMic(!prefs.mic); };
+    var mi = root.querySelector('#vmic');
+    if (mi) mi.onclick = function () {
+      if (!supported()) { showMsg(supportMsg(), 'warn'); return; }
+      setMic(!prefs.mic);
+    };
+    bindPtt(root.querySelector('#vptt'));
   }
 
   function paint() {
     var bar = document.getElementById('vbar');
+    var prevKind = bar && document.getElementById('vheard') && document.getElementById('vheard').className;
+    var prevTxt = bar && document.getElementById('vheard') && document.getElementById('vheard').textContent;
     if (bar) {
       var wrap = document.createElement('div');
       wrap.innerHTML = barHTML();
       bar.replaceWith(wrap.firstChild);
       bindBar(document.getElementById('vbar'));
-      if (prefs.mic && canAnswer()) showHeard('', 'listen');
+      if (prevTxt) {
+        var el = document.getElementById('vheard');
+        if (el) { el.className = prevKind || 'vheard'; el.textContent = prevTxt; }
+      } else if (prefs.mic && !supported()) showMsg(supportMsg(), 'warn');
+      else if (prefs.mic && !armed) showHeard('', 'tap');
+      else if (prefs.mic && recWanted && canAnswer()) showHeard('', 'listen');
     }
     var sm = document.getElementById('vmic-set');
     var sa = document.getElementById('vauto-set');
@@ -313,8 +646,9 @@
       bindBar(document.getElementById('vbar'));
     }
     if (prefs.auto && canAnswer() && speakKey() !== lastSpeakKey) speakQuestion();
-    else if (prefs.mic && canAnswer() && !speaking) { recWanted = true; startRec(); }
-    else if (!canAnswer()) { recPause(); if (prefs.mic) showHeard('', ''); }
+    else if (prefs.mic && armed && canAnswer() && !speaking) { recWanted = true; startRec(); }
+    else if (!canAnswer()) { recPause(); }
+    else if (prefs.mic && !armed) showHeard('', 'tap');
     paint();
   }
 
@@ -327,14 +661,12 @@
     card.className = 'card';
     card.id = 'vset';
     card.innerHTML = '<b>' + t('Mode vocal', 'Voice mode') + '</b>' +
-      '<p class="small muted">' + t('Lire la question à voix haute, et répondre en disant A, B, C, D ou le texte d\'un choix (par exemple « Charles Martel »). Les mots qui ne correspondent à aucun choix ne valident rien.', 'Read the question aloud, and answer by saying A, B, C, D or the wording of a choice (for example “Charles Martel”). Words that match no choice do nothing.') + '</p>' +
+      '<p class="small muted">' + t('Lire la question à voix haute (voix Vivienne, préenregistrée quand le fichier est disponible). Pour répondre, le plus fiable est de dire « Réponse A », « Réponse B », « Réponse C » ou « Réponse D ». Vous pouvez aussi dire le texte d\'un choix (par exemple « Charles Martel »). Les mots qui ne correspondent à aucun choix ne valident rien. Bouton « Maintenir pour parler » si l\'écoute continue ne démarre pas.', 'Read the question aloud (Vivienne / Sonia, pre-recorded when the file is available). The most reliable way to answer is to say “Answer A”, “Answer B”, “Answer C” or “Answer D”. You can also say the wording of a choice (for example “Charles Martel”). Words that match no choice do nothing. Use “Hold to talk” if continuous listening does not start.') + '</p>' +
       '<div class="chips">' +
       '<button type="button" class="chip' + (prefs.mic ? ' on' : '') + '" id="vmic-set" aria-pressed="' + !!prefs.mic + '">' + t('Réponse vocale', 'Voice answer') + '</button>' +
       '<button type="button" class="chip' + (prefs.auto ? ' on' : '') + '" id="vauto-set" aria-pressed="' + !!prefs.auto + '">' + t('Lecture automatique', 'Auto read-aloud') + '</button>' +
       '</div>' +
-      '<p class="small muted">' + (uns
-        ? t('La reconnaissance vocale n\'est pas disponible ici (Firefox notamment). Essayez Chrome, Edge ou Safari, en HTTPS.', 'Speech recognition is not available here (notably Firefox). Try Chrome, Edge or Safari, over HTTPS.')
-        : t('Fonctionne dans Chrome, Edge et Safari, en HTTPS. Le choix est mémorisé sur cet appareil.', 'Works in Chrome, Edge and Safari, over HTTPS. The setting is remembered on this device.')) + '</p>';
+      '<p class="small muted">' + (uns ? supportMsg() : t('Chrome, Edge ou Safari, en HTTPS. Sur iPhone et iPad, utilisez Safari et le bouton « Maintenir pour parler ». Le choix est mémorisé sur cet appareil.', 'Chrome, Edge or Safari, over HTTPS. On iPhone and iPad, use Safari and the “Hold to talk” button. The setting is remembered on this device.')) + '</p>';
     var data = app.querySelector('.card.small.muted');
     if (data) app.insertBefore(card, data);
     else app.appendChild(card);
@@ -346,21 +678,27 @@
     settingsCard();
     injectBar();
   });
+  /* La lecture MP3 doit continuer hors focus (Alt+Tab, autre onglet, écran du téléphone).
+     Ne pas mettre en pause sur visibilitychange / blur. Le micro, lui, peut être relâché. */
   document.addEventListener('visibilitychange', function () {
-    if (document.hidden) { cancelSpeak(); recPause(); }
-    else if (prefs.mic) recResume();
+    if (document.hidden) {
+      if (!speaking) recPause();
+    } else if (prefs.mic && armed && !speaking && !pttHeld) recResume();
   });
 
   window.LLAMA_VOICE = {
-    prefs: function () { return { mic: prefs.mic, auto: prefs.auto }; },
+    prefs: function () { return { mic: prefs.mic, auto: prefs.auto, armed: armed }; },
     setMic: setMic,
     setAuto: setAuto,
     speak: speakQuestion,
+    pauseSpeak: pauseSpeak,
+    resumeSpeak: resumeSpeak,
     showHeard: showHeard,
     supported: supported,
-    /* pour captures / tests : affiche l'état « j'entends » sans micro réel */
+    recSupport: recSupport,
+    hintText: hintText,
     forceUi: function (o) {
-      if (o && 'mic' in o) { prefs.mic = !!o.mic; save(); }
+      if (o && 'mic' in o) { prefs.mic = !!o.mic; if (prefs.mic) { recWanted = true; armed = true; } save(); }
       if (o && 'auto' in o) { prefs.auto = !!o.auto; save(); }
       paint(); injectBar();
       if (o && o.heard != null) showHeard(o.heard, o.kind || 'listen');

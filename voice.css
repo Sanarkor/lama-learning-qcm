@@ -15,3 +15,13 @@ html.dark .vbtn.on{background:var(--navy2);border-color:var(--navy2)}
   .vbtn{min-height:38px;padding:6px 9px;font-size:.82em}
   .vbtn span{max-width:11em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
+
+.vhint{flex:1 1 100%;margin:2px 0 0;font-size:.86em;font-weight:650;color:var(--navy);line-height:1.35}
+.vbtn.vptt{border-style:dashed}
+.vbtn.vptt.hold{background:var(--navy);border-color:var(--navy);border-style:solid;color:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.25)}
+html.dark .vbtn.vptt.hold{background:var(--navy2);border-color:var(--navy2)}
+.vheard.v-tap,.vheard.v-hold{color:var(--navy)}
+@media (max-width:400px){
+  .vhint{font-size:.8em}
+  .vbtn.vptt{font-size:.82em}
+}

@@ -327,3 +327,6 @@ html.dk .succ-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap
 html.dk .succ-badge,html.dk .succ-profile{border-radius:10px}
 html.dk .succ-pop-c,html.dk #succ-pop .succ-pop-c{border-radius:10px}
 html.dk #spd-tm{font-family:"Geist",system-ui,sans-serif}
+
+html.dk .vhint{font-family:"Geist",system-ui,sans-serif;letter-spacing:-.01em;font-size:.84em}
+html.dk .vbtn.vptt{border-radius:8px}
