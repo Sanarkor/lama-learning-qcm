@@ -12,8 +12,11 @@ OUT.mkdir(parents=True, exist_ok=True)
 RAW.mkdir(parents=True, exist_ok=True)
 
 items = json.loads(TODO.read_text())
+# Pour l'instant : français seulement (Vivienne). L'anglais (Sonia) viendra plus tard ;
+# le lecteur se rabat sur speechSynthesis en en-GB.
+items = [x for x in items if x.get("lang") == "fr"]
 todo = [x for x in items if not (OUT / f"{x['h']}.mp3").exists() or (OUT / f"{x['h']}.mp3").stat().st_size < 400]
-print(f"{len(items)} uniques, {len(todo)} à faire", flush=True)
+print(f"{len(items)} uniques FR, {len(todo)} à faire (EN ignoré)", flush=True)
 
 sem = asyncio.Semaphore(8)
 done = 0

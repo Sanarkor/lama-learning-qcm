@@ -112,5 +112,17 @@ eq('norm 21 fr', M.normalize('vingt et un', 'fr'), '21');
 eq('norm 1789 en', M.normalize('one thousand seven hundred eighty nine', 'en'), '1789');
 eq('norm year en', M.normalize('seventeen eighty nine', 'en'), '1789');
 
+/* ----- Filtre d'écho pendant la lecture ----- */
+var spokenQ = ['Question.', 'Qui a arrêté les Arabes à Poitiers ?'];
+eq('echo mot Question', M.isEchoTranscript('Question', spokenQ, 'fr'), true);
+eq('echo énoncé', M.isEchoTranscript('Qui a arrêté les Arabes à Poitiers ?', spokenQ, 'fr'), true);
+eq('echo lettre isolée A', M.isEchoTranscript('A', spokenQ.join(' '), 'fr'), true);
+eq('echo bé isolé', M.isEchoTranscript('bé', 'A. un choix', 'fr'), true);
+eq('pas écho Réponse A', M.isEchoTranscript('Réponse A', spokenQ, 'fr'), false);
+eq('pas écho Answer B', M.isEchoTranscript('Answer B', spokenQ, 'en'), false);
+eq('pas écho la C', M.isEchoTranscript('la C', spokenQ, 'fr'), false);
+eq('echo choix dans la fenêtre', M.isEchoTranscript('Charles Martel', ['B.', 'Charles Martel'], 'fr'), true);
+eq('pas écho choix hors fenêtre', M.isEchoTranscript('Charles Martel', spokenQ, 'fr'), false);
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

@@ -1,6 +1,8 @@
 /* Llama Learning — mode vocal.
    Lecture : MP3 Vivienne / Sonia (audio/) si présents, sinon speechSynthesis.
-   Réponse : Web Speech API, démarrage sur geste, relance auto, pause pendant la lecture,
+   Réponse : Web Speech API, démarrage sur geste, relance auto, barge-in pendant la lecture MP3
+   (filtre d'écho + echoCancellation ; écoute mains libres pendant la lecture, sans maintenir un bouton ;
+   « Maintenir pour parler » uniquement en secours si l'écoute continue ne démarre pas),
    « maintenir pour parler », messages d'état explicites. Préférences : lamaqcm-voice. */
 (function () {
   'use strict';
@@ -11,6 +13,7 @@
   var speaking = false, lastSpeakKey = '', heardT = null, armed = false, pttHeld = false;
   var mediaStream = null, player = null, preloader = null, manifest = null, manPromise = null;
   var speakPaused = false, playQueue = null, playResolve = null, playReject = null;
+  var lastSpeakParts = [], echoIndex = 0, echoAll = false;
 
   function en() { return document.documentElement.classList.contains('en'); }
   function t(fr, ev) { return en() ? ev : fr; }
@@ -65,6 +68,33 @@
     return q ? (q.textContent || '').trim() : '';
   }
   function speakKey() { return questionText() + ' | ' + currentChoices().join(' | '); }
+  /* L'écoute reste active pendant la lecture (mains libres, tous supports). */
+  function recBlockedBySpeak() { return false; }
+  function keepPlayerGoing() {
+    if (!player || !speaking || speakPaused) return;
+    if (player.paused && !player.ended) {
+      var p = player.play();
+      if (p && p.then) p.then(null, function () {});
+    }
+  }
+  function speakPartsList() {
+    var q = questionText(), ch = currentChoices(), letters = 'ABCD', parts = [t('Question.', 'Question.')];
+    if (q) parts.push(q);
+    ch.forEach(function (c, i) { parts.push(letters.charAt(i) + '.'); parts.push(c); });
+    return parts;
+  }
+  function currentEchoSpoken() {
+    if (echoAll || !lastSpeakParts.length) return (lastSpeakParts || []).join(' ');
+    var i = echoIndex || 0;
+    var from = Math.max(0, i - 1), to = Math.min(lastSpeakParts.length, i + 2);
+    return lastSpeakParts.slice(from, to).join(' ');
+  }
+  function isHeardEcho(text) {
+    var M = window.LLAMA_VOICE_MATCH;
+    if (!M || !M.isEchoTranscript || !speaking) return false;
+    return M.isEchoTranscript(text, currentEchoSpoken(), lang());
+  }
+
   function currentItem() {
     var a = window.LLAMA && window.LLAMA.cur && window.LLAMA.cur();
     if (!a) return null;
@@ -90,6 +120,8 @@
   function clipList() {
     var man = manifest, it = currentItem(), lg = lang();
     if (!man || !it || !it.id || !it.o) return null;
+    /* Clips anglais (Sonia) plus tard : pour l'instant, speechSynthesis en-GB. */
+    if (lg === 'en') return null;
     var qh = man.q && man.q[lg] && man.q[lg][it.id];
     var ch = man.c && man.c[lg] && man.c[lg][it.id];
     var L = man.letters && man.letters[lg];
@@ -221,7 +253,7 @@
 
   function afterSpeak() {
     speaking = false;
-    if (prefs.mic && recWanted && !pttHeld) recResume();
+    if (prefs.mic && recWanted && !pttHeld && !recBlockedBySpeak()) recResume();
   }
 
   function speakSynth() {
@@ -242,6 +274,8 @@
     u.volume = 1;
     var v = pickVoice();
     if (v) { u.voice = v; u.lang = v.lang || u.lang; }
+    echoAll = true;
+    echoIndex = 0;
     u.onend = u.onerror = function () { afterSpeak(); };
     try { speechSynthesis.speak(u); } catch (e) { afterSpeak(); }
   }
@@ -257,6 +291,13 @@
       player = new Audio();
       player.preload = 'auto';
       player.setAttribute('playsinline', 'true');
+      if (player.addEventListener) {
+        try {
+          player.addEventListener('pause', function () {
+            if (speaking && !speakPaused) setTimeout(keepPlayerGoing, 0);
+          });
+        } catch (e) {}
+      }
       function fail(err) {
         if (!playReject) return;
         var r = playReject;
@@ -274,6 +315,8 @@
           return;
         }
         var u = urls[i++];
+        echoIndex = i - 1;
+        echoAll = false;
         player.onended = next;
         player.onerror = function () { fail(new Error('audio')); };
         player.src = u;
@@ -290,19 +333,26 @@
     var q = questionText();
     if (!q) return;
     cancelSpeak();
-    recPause();
+    lastSpeakParts = speakPartsList();
+    echoIndex = 0;
+    echoAll = false;
     speaking = true;
     lastSpeakKey = speakKey();
     loadManifest().then(function () {
       var urls = clipList();
+      var go;
       if (urls && urls.length) {
-        return playUrls(urls).then(function () { afterSpeak(); }, function () {
+        go = playUrls(urls).then(function () { afterSpeak(); }, function () {
           if (!speaking) return;
           stopPlayer();
           speakSynth();
         });
+      } else {
+        speakSynth();
       }
-      speakSynth();
+      if (prefs.mic && recWanted && !recPaused && !pttHeld) startRec();
+      keepPlayerGoing();
+      return go;
     });
   }
 
@@ -321,7 +371,7 @@
     } else if (kind === 'ok' || kind === 'letter' || kind === 'content' || kind === 'tf' || kind === 'typed') {
       el.textContent = t('J\'entends : ', 'I hear: ') + text;
     } else if (text) el.textContent = t('J\'entends : ', 'I hear: ') + text;
-    else if (prefs.mic && recWanted && !speaking) el.textContent = t('Écoute…', 'Listening…');
+    else if (prefs.mic && recWanted && !recBlockedBySpeak()) el.textContent = t('Écoute…', 'Listening…');
     else el.textContent = '';
     clearTimeout(heardT);
     if (kind === 'none' || kind === 'ambiguous') {
@@ -347,12 +397,14 @@
     if (!btn || btn.disabled) { showHeard(res.heard, res.reason); return; }
     if (btn.classList.contains('sel')) { showHeard(res.heard, 'ok'); return; }
     showHeard(res.heard, res.reason || 'ok');
+    if (speaking) cancelSpeak();
     recPause();
     btn.click();
   }
 
   function onResult(ev) {
-    if (!prefs.mic || !canAnswer() || speaking) return;
+    if (!prefs.mic || !canAnswer()) return;
+    if (recBlockedBySpeak()) return;
     var interim = '', finalTxt = '';
     for (var i = ev.resultIndex; i < ev.results.length; i++) {
       var r = ev.results[i], tx = r[0] && r[0].transcript ? r[0].transcript : '';
@@ -360,8 +412,12 @@
       else interim += tx + ' ';
     }
     interim = interim.trim(); finalTxt = finalTxt.trim();
-    if (interim && !finalTxt) showHeard(interim, 'listen');
+    if (interim && !finalTxt) {
+      if (speaking && isHeardEcho(interim)) return;
+      showHeard(interim, 'listen');
+    }
     if (!finalTxt) return;
+    if (speaking && isHeardEcho(finalTxt)) return;
     var choices = currentChoices();
     var M = window.LLAMA_VOICE_MATCH;
     if (!M) return;
@@ -378,7 +434,7 @@
     recStarting = false;
   }
 
-  /* Pause sans abandonner l'intention d'écouter (ex. pendant la lecture). */
+  /* Pause sans abandonner l'intention d'écouter (changement de question, iOS pendant la lecture, PTT). */
   function recPause() {
     recPaused = true;
     clearTimeout(restartT);
@@ -391,24 +447,24 @@
 
   function recResume() {
     recPaused = false;
-    if (prefs.mic && recWanted && onQuiz() && canAnswer() && !speaking && !pttHeld) startRec();
+    if (prefs.mic && recWanted && onQuiz() && canAnswer() && !recBlockedBySpeak() && !pttHeld) startRec();
   }
 
   function scheduleRestart() {
     clearTimeout(restartT);
-    if (!recWanted || !prefs.mic || speaking || recPaused || pttHeld || !canAnswer()) return;
+    if (!recWanted || !prefs.mic || recBlockedBySpeak() || recPaused || pttHeld || !canAnswer()) return;
     /* iOS : relancer tout de suite dans onend (un délai casse le geste). Ailleurs, un court délai suffit. */
     if (isIOS()) startRec();
-    else restartT = setTimeout(function () { if (recWanted && prefs.mic && !speaking && !recPaused) startRec(); }, 120);
+    else restartT = setTimeout(function () { if (recWanted && prefs.mic && !recBlockedBySpeak() && !recPaused) startRec(); }, 120);
   }
 
   function startRec() {
     var sup = recSupport();
     if (!sup.ok) return;
-    if (!prefs.mic || !onQuiz() || !canAnswer() || speaking || pttHeld && !recWanted) {
+    if (!prefs.mic || !onQuiz() || !canAnswer() || recBlockedBySpeak() || pttHeld && !recWanted) {
       /* PTT hold sets pttHeld and still wants start — allow when pttHeld if we call startPtt */
     }
-    if (!prefs.mic || !onQuiz() || !canAnswer() || speaking) return;
+    if (!prefs.mic || !onQuiz() || !canAnswer() || recBlockedBySpeak()) return;
     recWanted = true;
     recPaused = false;
     if (rec || recStarting) return;
@@ -444,12 +500,13 @@
       rec.onend = function () {
         rec = null; recStarting = false;
         if (pttHeld) return;
-        if (recWanted && prefs.mic && canAnswer() && !speaking && !recPaused) scheduleRestart();
+        if (recWanted && prefs.mic && canAnswer() && !recBlockedBySpeak() && !recPaused) scheduleRestart();
       };
       rec.start();
       recStarting = false;
       armed = true;
       showHeard('', 'listen');
+      keepPlayerGoing();
     } catch (e) {
       recStarting = false;
       rec = null;
@@ -469,7 +526,10 @@
     if (mediaStream && mediaStream.getTracks().some(function (tr) { return tr.readyState === 'live'; })) {
       return Promise.resolve(mediaStream);
     }
-    return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) { mediaStream = s; return s; });
+    var cons = { audio: { echoCancellation: { ideal: true }, noiseSuppression: { ideal: true }, autoGainControl: { ideal: true } } };
+    return navigator.mediaDevices.getUserMedia(cons).then(function (s) { mediaStream = s; return s; }, function () {
+      return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) { mediaStream = s; return s; });
+    });
   }
 
   function setMic(on) {
@@ -499,7 +559,7 @@
     if (prefs.auto && onQuiz() && canAnswer()) speakQuestion();
   }
 
-  /* Maintenir pour parler : un geste utilisateur à chaque fois (fiable sur iOS). */
+  /* Maintenir pour parler : secours seulement, si l'écoute continue ne démarre pas. */
   function pttDown(ev) {
     if (ev && ev.preventDefault) ev.preventDefault();
     if (!supported()) { showMsg(supportMsg(), 'warn'); return; }
@@ -558,7 +618,7 @@
     /* après un appui, on reprend l'écoute continue si elle est activée (sauf iOS : on attend le prochain geste) */
     if (prefs.mic && !isIOS()) {
       recWanted = true;
-      setTimeout(function () { if (prefs.mic && !pttHeld && !speaking) recResume(); }, 200);
+      setTimeout(function () { if (prefs.mic && !pttHeld && !recBlockedBySpeak()) recResume(); }, 200);
     } else if (prefs.mic && isIOS()) {
       recWanted = true;
       showHeard('', 'hold');
@@ -646,7 +706,7 @@
       bindBar(document.getElementById('vbar'));
     }
     if (prefs.auto && canAnswer() && speakKey() !== lastSpeakKey) speakQuestion();
-    else if (prefs.mic && armed && canAnswer() && !speaking) { recWanted = true; startRec(); }
+    else if (prefs.mic && armed && canAnswer() && !recBlockedBySpeak()) { recWanted = true; startRec(); }
     else if (!canAnswer()) { recPause(); }
     else if (prefs.mic && !armed) showHeard('', 'tap');
     paint();
@@ -661,12 +721,12 @@
     card.className = 'card';
     card.id = 'vset';
     card.innerHTML = '<b>' + t('Mode vocal', 'Voice mode') + '</b>' +
-      '<p class="small muted">' + t('Lire la question à voix haute (voix Vivienne, préenregistrée quand le fichier est disponible). Pour répondre, le plus fiable est de dire « Réponse A », « Réponse B », « Réponse C » ou « Réponse D ». Vous pouvez aussi dire le texte d\'un choix (par exemple « Charles Martel »). Les mots qui ne correspondent à aucun choix ne valident rien. Bouton « Maintenir pour parler » si l\'écoute continue ne démarre pas.', 'Read the question aloud (Vivienne / Sonia, pre-recorded when the file is available). The most reliable way to answer is to say “Answer A”, “Answer B”, “Answer C” or “Answer D”. You can also say the wording of a choice (for example “Charles Martel”). Words that match no choice do nothing. Use “Hold to talk” if continuous listening does not start.') + '</p>' +
+      '<p class="small muted">' + t('Lire la question à voix haute (voix Vivienne, préenregistrée quand le fichier est disponible). Vous pouvez répondre pendant la lecture : une réponse reconnue arrête l\'audio et est validée comme un clic. Le plus fiable est de dire « Réponse A », « Réponse B », « Réponse C » ou « Réponse D ». Vous pouvez aussi dire le texte d\'un choix (par exemple « Charles Martel »). Les mots hors champ, et l\'écho de la voix lue, ne valident rien. Bouton « Maintenir pour parler » si l\'écoute continue ne démarre pas.', 'Read the question aloud (Vivienne / Sonia, pre-recorded when the file is available). You can answer while it is playing: a recognised answer stops the audio and is marked as if you had tapped it. The most reliable way is to say “Answer A”, “Answer B”, “Answer C” or “Answer D”. You can also say the wording of a choice (for example “Charles Martel”). Out-of-scope words, and echo of the text being read, do nothing. Use “Hold to talk” if continuous listening does not start.') + '</p>' +
       '<div class="chips">' +
       '<button type="button" class="chip' + (prefs.mic ? ' on' : '') + '" id="vmic-set" aria-pressed="' + !!prefs.mic + '">' + t('Réponse vocale', 'Voice answer') + '</button>' +
       '<button type="button" class="chip' + (prefs.auto ? ' on' : '') + '" id="vauto-set" aria-pressed="' + !!prefs.auto + '">' + t('Lecture automatique', 'Auto read-aloud') + '</button>' +
       '</div>' +
-      '<p class="small muted">' + (uns ? supportMsg() : t('Chrome, Edge ou Safari, en HTTPS. Sur iPhone et iPad, utilisez Safari et le bouton « Maintenir pour parler ». Le choix est mémorisé sur cet appareil.', 'Chrome, Edge or Safari, over HTTPS. On iPhone and iPad, use Safari and the “Hold to talk” button. The setting is remembered on this device.')) + '</p>';
+      '<p class="small muted">' + (uns ? supportMsg() : t('Chrome, Edge ou Safari, en HTTPS. La réponse vocale écoute en continu pendant la lecture, sans maintenir de bouton. « Maintenir pour parler » n\'est qu\'un secours si l\'écoute continue ne démarre pas. Sur iPhone et iPad, utilisez Safari. Le choix est mémorisé sur cet appareil.', 'Chrome, Edge or Safari, over HTTPS. Voice answering listens continuously during playback, with no button to hold. “Hold to talk” is only a fallback if continuous listening does not start. On iPhone and iPad, use Safari. The setting is remembered on this device.')) + '</p>';
     var data = app.querySelector('.card.small.muted');
     if (data) app.insertBefore(card, data);
     else app.appendChild(card);
@@ -683,7 +743,7 @@
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
       if (!speaking) recPause();
-    } else if (prefs.mic && armed && !speaking && !pttHeld) recResume();
+    } else if (prefs.mic && armed && !pttHeld && !recBlockedBySpeak()) recResume();
   });
 
   window.LLAMA_VOICE = {
@@ -697,6 +757,9 @@
     supported: supported,
     recSupport: recSupport,
     hintText: hintText,
+    isEcho: isHeardEcho,
+    echoSpoken: currentEchoSpoken,
+    recBlockedBySpeak: recBlockedBySpeak,
     forceUi: function (o) {
       if (o && 'mic' in o) { prefs.mic = !!o.mic; if (prefs.mic) { recWanted = true; armed = true; } save(); }
       if (o && 'auto' in o) { prefs.auto = !!o.auto; save(); }

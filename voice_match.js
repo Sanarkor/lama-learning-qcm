@@ -432,6 +432,45 @@
     return { ok: false, heard: heard, reason: 'none' };
   }
 
+  /* Filtre d'écho : ignore un transcript qui recopie le texte en cours de lecture.
+     « Réponse A » / « Answer B » (commande explicite) n'est jamais un écho.
+     Une lettre isolée (« A », « bé ») pendant la lecture l'est (clips des lettres). */
+  function isEchoTranscript(heard, spoken, lang) {
+    lang = lang || 'fr';
+    heard = String(heard || '').trim();
+    if (!heard) return false;
+    var n = normalize(heard, lang);
+    if (!n) return false;
+    var raw = basic(prepLetter(heard));
+    var letter = matchLetter(heard);
+    if (letter !== null) {
+      if (/\b(reponse|reponses|answer|answers|option|options|choix|lettre|letter|numero|number)\b/.test(raw)) return false;
+      var toks = tokens(raw);
+      if (toks.length >= 2 && letterIndex(toks[toks.length - 1]) !== null && toks.slice(0, -1).every(function (w) { return PREFIX[w]; })) {
+        /* « la C », « the B » : commande courte, pas un écho de « C. » */
+        if (toks.length >= 2 && !/^(a|ah|ha|c)$/.test(toks[0])) return false;
+      }
+      return true;
+    }
+    var windowText = Array.isArray(spoken) ? spoken.filter(Boolean).join(' ') : String(spoken || '');
+    var nw = normalize(windowText, lang);
+    if (!nw) return false;
+    if (n === 'question') return true;
+    if (n.length >= 2 && nw.indexOf(n) !== -1) return true;
+    if (nw.length >= 4 && n.indexOf(nw) !== -1 && n.length - nw.length <= 2) return true;
+    var ht = tokens(n).filter(function (w) { return w.length >= 2 || /^\d+$/.test(w); });
+    var wt = tokens(nw);
+    if (!ht.length) return false;
+    var hit = 0;
+    ht.forEach(function (w) {
+      if (wt.indexOf(w) !== -1) { hit++; return; }
+      for (var j = 0; j < wt.length; j++) {
+        if (w.length >= 4 && wt[j].length >= 4 && sim(w, wt[j]) >= 0.86) { hit++; return; }
+      }
+    });
+    return (hit / ht.length) >= 0.8;
+  }
+
   return {
     normalize: normalize,
     expandNumbers: expandNumbers,
@@ -440,6 +479,7 @@
     matchLetter: matchLetter,
     matchVoiceAnswer: matchVoiceAnswer,
     matchTyped: matchTyped,
-    contentScore: contentScore
+    contentScore: contentScore,
+    isEchoTranscript: isEchoTranscript
   };
 });
