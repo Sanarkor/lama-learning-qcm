@@ -124,5 +124,17 @@ eq('pas écho la C', M.isEchoTranscript('la C', spokenQ, 'fr'), false);
 eq('echo choix dans la fenêtre', M.isEchoTranscript('Charles Martel', ['B.', 'Charles Martel'], 'fr'), true);
 eq('pas écho choix hors fenêtre', M.isEchoTranscript('Charles Martel', spokenQ, 'fr'), false);
 
+
+/* ----- Adonis / flou phonétique ----- */
+var MYTH = ['Adonis', 'Narcisse', 'Hyacinthe', 'Ganymède'];
+eq('Adonis exact', idx('Adonis', MYTH), 0);
+eq('adonis minuscule', idx('adonis', MYTH), 0);
+eq('adoni proche', idx('adoni', MYTH), 0);
+eq('a donisse STT', idx('a donisse', MYTH), 0);
+eq('adonisse', idx('adonisse', MYTH), 0);
+eq('à Donis', idx('à Donis', MYTH), 0);
+eq('Narcisse pas Adonis', idx('Narcisse', MYTH), 1);
+eq('hors champ bonjour myth', idx('bonjour', MYTH), null);
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

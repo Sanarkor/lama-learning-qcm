@@ -191,6 +191,13 @@ const assert = (c, m) => { if (!c) { throw new Error('FAIL ' + m); } };
     await page.waitForTimeout(400);
     const n3 = await page.evaluate(() => window.__recStarts);
     assert(n3 > n2, 'restarted after no-speech (' + n2 + ' -> ' + n3 + ')');
+    await page.evaluate(() => {
+      const r = (window.__recs || []).filter(x => x.onerror).pop();
+      if (r && r.onerror) r.onerror({ error: 'aborted' });
+    });
+    await page.waitForTimeout(400);
+    const n4 = await page.evaluate(() => window.__recStarts);
+    assert(n4 > n3, 'restarted after aborted (' + n3 + ' -> ' + n4 + ')');
   });
 
   await test('hands-free rec stays up during read-aloud; barge-in validates; echo ignored', async (page) => {
@@ -439,6 +446,86 @@ const assert = (c, m) => { if (!c) { throw new Error('FAIL ' + m); } };
     assert(/fr/i.test(u.vlang || '') || !u.voice, 'voice lang must be French: ' + JSON.stringify(u));
     assert(/La question/i.test(u.text || ''), 'FR intro phrase: ' + (u.text || ''));
     assert(/R[ée]ponse A/i.test(u.text || ''), 'FR letter phrase: ' + (u.text || ''));
+  });
+
+
+  await test('saved mic on: first tap starts listening, still listening on next question', async (page) => {
+    await page.addInitScript(() => {
+      try { localStorage.setItem('lamaqcm-voice', JSON.stringify({ mic: true, auto: false })); } catch (e) {}
+      try { localStorage.setItem('lamaqcm-advance', '0'); } catch (e) {}
+    });
+    await page.goto('http://127.0.0.1:8777/#/entrainement?m=cg', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForSelector('#go', { timeout: 20000 });
+    const before = await page.evaluate(() => ({ starts: window.__recStarts || 0, mic: document.querySelector('#vmic') && document.querySelector('#vmic').classList.contains('on') }));
+    assert(before.starts === 0, 'must not start before the first gesture: ' + JSON.stringify(before));
+    await page.click('#go');
+    await page.waitForSelector('#vbar', { timeout: 15000 });
+    await page.waitForFunction(() => (window.__recStarts || 0) >= 1);
+    const mid = await page.evaluate(() => ({
+      starts: window.__recStarts || 0,
+      armed: window.LLAMA_VOICE && window.LLAMA_VOICE.prefs().armed,
+      mic: window.LLAMA_VOICE && window.LLAMA_VOICE.prefs().mic,
+      heard: (document.getElementById('vheard') || {}).textContent || '',
+      live: (window.__recs || []).filter(function (r) { return r._started && r.onresult; }).length
+    }));
+    assert(mid.mic, 'mic pref still on');
+    assert(mid.starts >= 1 && mid.live >= 1, 'listening after first tap: ' + JSON.stringify(mid));
+    assert(/[ÉE]coute/.test(mid.heard), 'status ecoute: ' + mid.heard);
+    await page.click('#app .opt');
+    await page.waitForSelector('#next', { timeout: 8000 });
+    const n1 = await page.evaluate(() => window.__recStarts || 0);
+    await page.click('#next');
+    await page.waitForSelector('#app .opt:not([disabled])', { timeout: 8000 });
+    await page.waitForFunction(() => {
+      const live = (window.__recs || []).filter(function (r) { return r._started && r.onresult; });
+      return live.length >= 1;
+    });
+    const after = await page.evaluate(() => ({
+      starts: window.__recStarts || 0,
+      live: (window.__recs || []).filter(function (r) { return r._started && r.onresult; }).length,
+      disabled: document.querySelectorAll('#app .opt[disabled]').length
+    }));
+    assert(after.live >= 1, 'still listening on next question: ' + JSON.stringify(after));
+    assert(after.disabled === 0, 'next question is answerable');
+  });
+
+  await test('auto-advance countdown appears; click skips the wait', async (page) => {
+    await page.addInitScript(() => {
+      try { localStorage.removeItem('lamaqcm-advance'); } catch (e) {}
+    });
+    await page.goto('http://127.0.0.1:8777/#/entrainement?m=cg', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForSelector('#go', { timeout: 20000 });
+    await page.click('#go');
+    await page.waitForSelector('#app .opt', { timeout: 15000 });
+    const q0 = await page.evaluate(() => (document.querySelector('#app .q') || {}).textContent || '');
+    await page.click('#app .opt');
+    await page.waitForSelector('#advcd', { timeout: 8000 });
+    const cd = await page.locator('#advcd').textContent();
+    assert(/[123]\s*s/.test(cd || ''), 'countdown text: ' + cd);
+    await page.click('#advcd');
+    await page.waitForFunction((q0) => {
+      const q = (document.querySelector('#app .q') || {}).textContent || '';
+      const open = document.querySelectorAll('#app .opt:not([disabled])').length;
+      return q && q !== q0 && open >= 4;
+    }, q0);
+  });
+
+  await test('English switcher hidden when ENABLE_EN is false; page stays FR', async (page) => {
+    await page.addInitScript(() => {
+      try { localStorage.setItem('lamaqcm-lang', 'en'); } catch (e) {}
+    });
+    await page.goto('http://127.0.0.1:8777/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForSelector('#app', { timeout: 15000 });
+    const info = await page.evaluate(() => ({
+      flag: window.ENABLE_EN,
+      lang: document.documentElement.lang,
+      enClass: document.documentElement.classList.contains('en'),
+      langbtn: !!(document.getElementById('langbtn') && document.getElementById('langbtn').offsetParent),
+      chips: document.querySelectorAll('[data-lg]').length
+    }));
+    assert(info.flag === false, 'ENABLE_EN must be false: ' + JSON.stringify(info));
+    assert(info.lang === 'fr' && !info.enClass, 'forced FR despite saved en: ' + JSON.stringify(info));
+    assert(!info.langbtn, 'lang button must be hidden: ' + JSON.stringify(info));
   });
 
   await browser.close();

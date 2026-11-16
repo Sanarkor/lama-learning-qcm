@@ -370,7 +370,7 @@
     el.className = 'vheard' + (kind ? ' v-' + kind : '');
     if (!text && kind === 'listen') el.textContent = t('Écoute…', 'Listening…');
     else if (kind === 'hold') el.textContent = t('Maintenez le bouton pour parler…', 'Hold the button to talk…');
-    else if (kind === 'tap') el.textContent = t('Touchez « Réponse vocale » pour activer le micro.', 'Tap “Voice answer” to turn the microphone on.');
+    else if (kind === 'tap') el.textContent = t('Touchez l\'écran pour lancer le micro.', 'Tap the screen to start the microphone.');
     else if (kind === 'none' || kind === 'ambiguous') {
       el.textContent = (kind === 'ambiguous'
         ? t('Ambigu : « ', 'Ambiguous: “')
@@ -412,23 +412,32 @@
   function onResult(ev) {
     if (!prefs.mic || !canAnswer()) return;
     if (recBlockedBySpeak()) return;
-    var interim = '', finalTxt = '';
-    for (var i = ev.resultIndex; i < ev.results.length; i++) {
-      var r = ev.results[i], tx = r[0] && r[0].transcript ? r[0].transcript : '';
-      if (r.isFinal) finalTxt += tx + ' ';
-      else interim += tx + ' ';
+    var interim = '', finals = [], i, k, r, tx;
+    for (i = ev.resultIndex; i < ev.results.length; i++) {
+      r = ev.results[i];
+      if (!r) continue;
+      if (r.isFinal) {
+        for (k = 0; k < r.length; k++) {
+          tx = r[k] && r[k].transcript ? String(r[k].transcript).trim() : '';
+          if (tx && finals.indexOf(tx) < 0) finals.push(tx);
+        }
+      } else {
+        tx = r[0] && r[0].transcript ? r[0].transcript : '';
+        if (tx) interim += tx + ' ';
+      }
     }
-    interim = interim.trim(); finalTxt = finalTxt.trim();
-    if (interim && !finalTxt) {
+    interim = interim.trim();
+    if (interim && !finals.length) {
       if (speaking && isHeardEcho(interim)) return;
       showHeard(interim, 'listen');
     }
-    if (!finalTxt) return;
-    if (speaking && isHeardEcho(finalTxt)) return;
+    if (!finals.length) return;
+    if (speaking && finals.every(function (s) { return isHeardEcho(s); })) return;
     var choices = currentChoices();
     var M = window.LLAMA_VOICE_MATCH;
     if (!M) return;
-    applyMatch(M.matchVoiceAnswer(finalTxt, choices, lang()));
+    var res = M.matchVoiceAnswerMany ? M.matchVoiceAnswerMany(finals, choices, lang()) : M.matchVoiceAnswer(finals[0], choices, lang());
+    applyMatch(res);
   }
 
   function recStop(clearWanted) {
@@ -481,9 +490,10 @@
       rec.lang = recLang();
       rec.continuous = !isIOS() && !pttHeld;
       rec.interimResults = true;
-      rec.maxAlternatives = 1;
+      rec.maxAlternatives = 5;
       rec.onresult = onResult;
       rec.onerror = function (e) {
+        if (rec !== this) return;
         recStarting = false;
         var err = (e && e.error) || '';
         if (err === 'not-allowed' || err === 'service-not-allowed') {
@@ -498,13 +508,18 @@
           scheduleRestart();
           return;
         }
-        if (err === 'aborted') return;
+        if (err === 'aborted') {
+          rec = null; recStarting = false;
+          if (recWanted && prefs.mic && !recPaused && !pttHeld) scheduleRestart();
+          return;
+        }
         if (err === 'network') showMsg(t('Reconnaissance vocale : problème réseau.', 'Speech recognition: network problem.'), 'warn');
         if (err === 'not-supported' || err === 'audio-capture') {
           showMsg(supportMsg(), 'warn');
         }
       };
       rec.onend = function () {
+        if (rec !== this) return;
         rec = null; recStarting = false;
         if (pttHeld) return;
         if (recWanted && prefs.mic && canAnswer() && !recBlockedBySpeak() && !recPaused) scheduleRestart();
@@ -539,6 +554,34 @@
     });
   }
 
+  var gestHooked = false;
+  function unhookGesture() {
+    document.removeEventListener('pointerdown', onFirstGesture, true);
+    document.removeEventListener('keydown', onFirstGesture, true);
+    gestHooked = false;
+  }
+  function onFirstGesture(ev) {
+    if (!prefs.mic || !supported()) { unhookGesture(); return; }
+    var tgt = ev && ev.target;
+    if (tgt && tgt.closest && tgt.closest('#vmic, #vmic-set')) return;
+    unhookGesture();
+    armed = true;
+    recWanted = true;
+    requestMic().then(function () {
+      if (prefs.mic && onQuiz() && canAnswer() && !pttHeld && !recBlockedBySpeak()) startRec();
+      paint();
+    }, function () {
+      prefs.mic = false; armed = false; recWanted = false; save(); paint();
+      showMsg(t('Micro refusé. Autorisez le microphone dans les réglages du navigateur pour répondre à la voix.', 'Microphone denied. Allow the microphone in the browser settings to answer by voice.'), 'warn');
+    });
+  }
+  function hookGesture() {
+    if (!prefs.mic || !supported() || armed || gestHooked) return;
+    gestHooked = true;
+    document.addEventListener('pointerdown', onFirstGesture, true);
+    document.addEventListener('keydown', onFirstGesture, true);
+  }
+
   function setMic(on) {
     if (on) {
       var sup = recSupport();
@@ -557,6 +600,7 @@
       });
     } else {
       prefs.mic = false; recWanted = false; armed = false; save();
+      unhookGesture();
       recStop(true); cancelSpeak(); stopStream(); showHeard('', ''); paint();
     }
   }
@@ -598,7 +642,7 @@
       rec.lang = recLang();
       rec.continuous = false;
       rec.interimResults = true;
-      rec.maxAlternatives = 1;
+      rec.maxAlternatives = 5;
       rec.onresult = onResult;
       rec.onerror = function (e) {
         var err = (e && e.error) || '';
@@ -715,7 +759,7 @@
     if (prefs.auto && canAnswer() && speakKey() !== lastSpeakKey) speakQuestion();
     else if (prefs.mic && armed && canAnswer() && !recBlockedBySpeak()) { recWanted = true; startRec(); }
     else if (!canAnswer()) { recPause(); }
-    else if (prefs.mic && !armed) showHeard('', 'tap');
+    else if (prefs.mic && !armed) { hookGesture(); showHeard('', 'tap'); }
     paint();
   }
 
@@ -745,12 +789,14 @@
     settingsCard();
     injectBar();
   });
+  if (prefs.mic && supported()) hookGesture();
   /* La lecture MP3 doit continuer hors focus (Alt+Tab, autre onglet, écran du téléphone).
      Ne pas mettre en pause sur visibilitychange / blur. Le micro, lui, peut être relâché. */
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
       if (!speaking) recPause();
     } else if (prefs.mic && armed && !pttHeld && !recBlockedBySpeak()) recResume();
+    else if (prefs.mic && !armed) hookGesture();
   });
 
   window.LLAMA_VOICE = {

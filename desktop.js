@@ -59,6 +59,7 @@
     side = D.createElement('nav'); side.id = 'dk-side';
     side.innerHTML = '<div class="dk-head"><a class="dk-brand" href="#/"><span class="dk-logo"><img alt="Llama Learning" src="' + logoSrc() + '"></span></a>' +
       '<button type="button" class="dk-colbtn" id="dk-colbtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button></div>' +
+      '<div class="dk-rail" id="dk-rail"></div>' +
       '<div class="dk-body"><div class="dk-scroll" id="dk-links"></div><div class="dk-foot" id="dk-foot"></div></div>';
     D.body.appendChild(side);
     $('#dk-colbtn').addEventListener('click', function () { colSet(!H.classList.contains('dk-col')); });
@@ -115,11 +116,18 @@
     var keepTop = $('#dk-links', side).scrollTop;
     $('#dk-links', side).innerHTML = h;
     var why = a.lockReason(), en = a.en();
-    $('#dk-foot', side).innerHTML = '<div class="dk-lang" role="group" aria-label="' + t('Langue', 'Language') + '"' + (why ? ' title="' + esc(why) + '"' : '') + '>' +
+    var langBox = window.ENABLE_EN ? ('<div class="dk-lang" role="group" aria-label="' + t('Langue', 'Language') + '"' + (why ? ' title="' + esc(why) + '"' : '') + '>' +
       [['fr', 'Français', 'FR'], ['en', 'English', 'EN']].map(function (x) {
         var cur = (x[0] === 'en') === en, dis = !cur && !!why;
         return '<button type="button" data-lg="' + x[0] + '" lang="' + x[0] + '" class="' + (cur ? 'on' : '') + '" aria-pressed="' + cur + '"' + (dis ? ' disabled' : '') + ' title="' + (dis ? esc(why) : x[1]) + '">' + x[2] + '</button>';
-      }).join('') + '</div>' +
+      }).join('') + '</div>') : '';
+    var rail = $('#dk-rail', side);
+    if (rail) {
+      rail.innerHTML = [['home', '#/', 'home', t('Accueil', 'Home')], ['succ', '#/succes', 'succ', t('Succès', 'Achievements')], ['scores', '#/scores', 'scores', t('Stats', 'Stats')], ['set', '#/reglages', 'set', t('Réglages', 'Settings')]].map(function (x) {
+        return '<a class="dk-l" data-k="' + x[0] + '" href="' + x[1] + '" title="' + esc(x[3]) + '" aria-label="' + esc(x[3]) + '"><i>' + ico(x[2]) + '</i><span>' + esc(x[3]) + '</span></a>';
+      }).join('');
+    }
+    $('#dk-foot', side).innerHTML = langBox +
       '<button type="button" class="dk-mode" id="dk-mode" aria-pressed="' + a.dark() + '" title="' + (a.dark() ? t('Passer en mode clair', 'Switch to light mode') : t('Passer en mode sombre', 'Switch to dark mode')) + '">' +
         '<span class="' + (a.dark() ? '' : 'on') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>' + t('Clair', 'Light') + '</span>' +
         '<span class="' + (a.dark() ? 'on' : '') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>' + t('Sombre', 'Dark') + '</span></button>' +

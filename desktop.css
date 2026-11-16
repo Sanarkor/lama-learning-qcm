@@ -65,6 +65,17 @@ html.dk-col #dk-side .dk-colbtn{left:20px;top:70px}
 html.dk-col #dk-side .dk-colbtn svg{transform:rotate(180deg)}
 html.dk-col #dk-side .dk-body{opacity:0;visibility:hidden;pointer-events:none}
 html.dk-col #dk-side .dk-head{height:120px}
+#dk-side .dk-rail{display:none}
+html.dk-col #dk-side .dk-rail{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 8px 16px;flex:1;min-height:0}
+html.dk-col #dk-side .dk-rail a{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;color:#fff;text-decoration:none;opacity:.9}
+html.dk-col #dk-side .dk-rail a:hover{background:rgba(255,255,255,.13);opacity:1}
+html.dk-col #dk-side .dk-rail a:focus-visible{outline:3px solid #ffd36b;outline-offset:1px}
+html.dk-col #dk-side .dk-rail a.dk-on{background:#fff;color:var(--navy2);opacity:1;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+html.dark.dk-col #dk-side .dk-rail a.dk-on{background:var(--card);color:var(--ink)}
+html.dk-col #dk-side .dk-rail i{flex:none;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
+html.dk-col #dk-side .dk-rail svg{width:22px;height:22px;display:block;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+html.dk-col #dk-side .dk-rail span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+
 /* animation : seules la largeur du menu et la marge du contenu bougent ; le contenu du menu garde sa largeur (rien ne se reformate) */
 html.dk-anim #dk-side,html.dk-anim body::before{transition:width .26s var(--ease)}
 html.dk-anim body{transition:padding-left .26s var(--ease)}

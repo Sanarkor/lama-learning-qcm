@@ -5,8 +5,11 @@
      l'applique avant l'affichage (classe html.en + data_en.js). Ensuite, le bouton bascule en direct, sans recharger :
      data_en.js est chargé à la demande la première fois. */
   var LK = 'lamaqcm-lang';
-  var X = window.QCM_EN, EN = document.documentElement.classList.contains('en') && !!X;
+  var EN_OK = !!window.ENABLE_EN;
+  var X = window.QCM_EN, EN = EN_OK && document.documentElement.classList.contains('en') && !!X;
   if (!EN) { document.documentElement.classList.remove('en'); document.documentElement.lang = 'fr'; }
+  if (EN_OK) document.documentElement.classList.add('enable-en');
+  else document.documentElement.classList.remove('enable-en');
   function t(fr, en) { return EN ? en : fr; }
   var D = window.QCM_DATA, Q, BY = {}, MAT;
   function buildData() {
@@ -84,7 +87,51 @@
   var app = document.getElementById('app');
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   var keepScroll = false;
-  function h(html) { app.innerHTML = html; if (!keepScroll) window.scrollTo(0, 0); langState(); try { document.dispatchEvent(new CustomEvent('llama:render')); } catch (e) {} }
+  var AK = 'lamaqcm-advance', advT = null, advRaf = null;
+  function advOn() {
+    try { var x = localStorage.getItem(AK); if (x === null || x === '') return true; return x !== '0' && x !== 'false'; } catch (e) { return true; }
+  }
+  function setAdv(on) { try { localStorage.setItem(AK, on ? '1' : '0'); } catch (e) {} }
+  function cancelAdvance() {
+    if (advT) { clearTimeout(advT); advT = null; }
+    if (advRaf) { cancelAnimationFrame(advRaf); advRaf = null; }
+    var el = document.getElementById('advcd'); if (el && el.parentNode) el.parentNode.removeChild(el);
+  }
+  function armAdvance(btn) {
+    cancelAdvance();
+    if (!advOn() || !btn) return;
+    if (btn.id === 'nxt' && E && E.i + 1 >= E.list.length) return;
+    var row = btn.parentNode;
+    var cd = document.createElement('div');
+    cd.id = 'advcd';
+    cd.className = 'advcd';
+    cd.innerHTML = '<div class="adv-bar"><i></i></div><span class="adv-s">3 s</span>';
+    cd.title = t('Question suivante dans 3 s — cliquer pour passer tout de suite', 'Next question in 3 s — click to skip the wait');
+    if (row) row.insertBefore(cd, btn);
+    btn.classList.add('adv-on');
+    var t0 = Date.now(), dur = 3000;
+    function tick() {
+      if (!btn.isConnected) { cancelAdvance(); return; }
+      var left = Math.max(0, dur - (Date.now() - t0));
+      var w = ((1 - left / dur) * 100) + '%';
+      btn.style.setProperty('--adv', w);
+      var bar = cd.querySelector('i'); if (bar) bar.style.width = w;
+      var s = cd.querySelector('.adv-s'); if (s) s.textContent = Math.max(1, Math.ceil(left / 1000)) + ' s';
+      if (left <= 0) return;
+      advRaf = requestAnimationFrame(tick);
+    }
+    tick();
+    var prev = btn.onclick;
+    function goNow() {
+      cancelAdvance();
+      if (prev) prev.call(btn);
+      else if (btn.isConnected) btn.click();
+    }
+    cd.onclick = function (e) { if (e && e.preventDefault) e.preventDefault(); goNow(); };
+    btn.onclick = function (e) { cancelAdvance(); if (prev) prev.call(this, e); };
+    advT = setTimeout(goNow, dur);
+  }
+  function h(html) { cancelAdvance(); app.innerHTML = html; if (!keepScroll) window.scrollTo(0, 0); langState(); try { document.dispatchEvent(new CustomEvent('llama:render')); } catch (e) {} }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   function uniq(a) { return a.filter(function (x, i) { return a.indexOf(x) === i; }); }
   function themes(m) { return uniq(Q.filter(function (q) { return q.m === m; }).map(function (q) { return q.t; })); }
@@ -226,7 +273,8 @@
     qShownAt = Date.now();
     app.querySelectorAll('.opt').forEach(function (b) { b.onclick = function () { answer(+b.dataset.j); }; });
     var sk = document.getElementById('skip'); if (sk) sk.onclick = function () { answer(-1); };
-    var nx = document.getElementById('next'); if (nx) nx.onclick = function () { P.i++; P.ans = null; keep(); practice(); };
+    var nx = document.getElementById('next'); if (nx) nx.onclick = function () { cancelAdvance(); P.i++; P.ans = null; keep(); practice(); };
+    if (a !== null && nx) armAdvance(nx);
   }
   var qShownAt = 0;
   function noteAnswer(ok, skip, id, ms, source) {
@@ -287,11 +335,12 @@
       '<button class="btn gold block" id="fin">' + t('Terminer l\'examen', 'Finish the exam') + '</button><p class="small muted">' + t('Niveau ', 'Level ') + esc(penLabel(E.pen)) + t(' · sans réponse = 0 point.', ' · no answer = 0 points.') + '</p>');
     app.querySelectorAll('.opt').forEach(function (b) { b.onclick = function () { var j = +b.dataset.j; E.ans[E.i] = E.ans[E.i] === j ? null : j; keep(); exam(); }; });
     app.querySelectorAll('[data-k]').forEach(function (b) { b.onclick = function () { E.i = +b.dataset.k; keep(); exam(); }; });
-    document.getElementById('prev').onclick = function () { if (E.i) { E.i--; keep(); exam(); } };
-    document.getElementById('clr').onclick = function () { E.ans[E.i] = null; keep(); exam(); };
-    document.getElementById('nxt').onclick = function () { if (E.i + 1 < E.list.length) { E.i++; keep(); exam(); } else finish(); };
-    document.getElementById('fin').onclick = finish;
+    document.getElementById('prev').onclick = function () { cancelAdvance(); if (E.i) { E.i--; keep(); exam(); } };
+    document.getElementById('clr').onclick = function () { cancelAdvance(); E.ans[E.i] = null; keep(); exam(); };
+    document.getElementById('nxt').onclick = function () { cancelAdvance(); if (E.i + 1 < E.list.length) { E.i++; keep(); exam(); } else finish(); };
+    document.getElementById('fin').onclick = function () { cancelAdvance(); finish(); };
     runTimer();
+    if (E.ans[E.i] !== null) armAdvance(document.getElementById('nxt'));
   }
   function finish() {
     var left = E.ans.filter(function (x) { return x === null; }).length;
@@ -385,13 +434,16 @@
 
   /* ---------- Réglages ---------- */
   function reglages() {
-    h(back() + '<h1>' + t('Réglages', 'Settings') + '</h1><div class="card"><b>' + t('Langue', 'Language') + '</b><div class="chips"><button class="chip' + (!EN ? ' on' : '') + '" data-lg="fr">Français</button><button class="chip' + (EN ? ' on' : '') + '" data-lg="en">English</button></div><b>' + t('Taille du texte', 'Text size') + '</b><div class="chips">' +
+    var langBlock = EN_OK ? ('<b>' + t('Langue', 'Language') + '</b><div class="chips"><button class="chip' + (!EN ? ' on' : '') + '" data-lg="fr">Français</button><button class="chip' + (EN ? ' on' : '') + '" data-lg="en">English</button></div>') : '';
+    h(back() + '<h1>' + t('Réglages', 'Settings') + '</h1><div class="card">' + langBlock + '<b>' + t('Taille du texte', 'Text size') + '</b><div class="chips">' +
       [[15, t('Petite', 'Small')], [17, t('Normale', 'Normal')], [19, t('Grande', 'Large')], [21, t('Très grande', 'Very large')]].map(function (x) { return '<button class="chip' + (S.set.fs === x[0] ? ' on' : '') + '" data-fs="' + x[0] + '">' + x[1] + '</button>'; }).join('') +
       '</div><b>' + t('Couleurs', 'Colours') + '</b><div class="chips"><button class="chip' + (!S.set.dark ? ' on' : '') + '" data-dk="0">' + t('Clair', 'Light') + '</button><button class="chip' + (S.set.dark ? ' on' : '') + '" data-dk="1">' + t('Sombre', 'Dark') + '</button></div>' +
-      '<b>' + t('Palette de couleurs', 'Colour palette') + '</b><div class="chips">' + THEMES.map(function (x) { return '<button class="chip' + (theme()[0] === x[0] ? ' on' : '') + '" data-th="' + x[0] + '"><span class="sw" style="background:' + x[3] + '"></span>' + x[1] + '</button>'; }).join('') + '</div></div>' +
+      '<b>' + t('Palette de couleurs', 'Colour palette') + '</b><div class="chips">' + THEMES.map(function (x) { return '<button class="chip' + (theme()[0] === x[0] ? ' on' : '') + '" data-th="' + x[0] + '"><span class="sw" style="background:' + x[3] + '"></span>' + x[1] + '</button>'; }).join('') + '</div>' +
+      '<b>' + t('Question suivante', 'Next question') + '</b><div class="chips"><button type="button" class="chip' + (advOn() ? ' on' : '') + '" id="adv-set" aria-pressed="' + advOn() + '">' + t('Passer automatiquement après 3 s', 'Auto-advance after 3 s') + '</button></div><p class="small muted">' + t('Après une réponse (voix ou clic), la question suivante s\'affiche au bout de 3 secondes. Cliquez sur « Question suivante » pour passer tout de suite.', 'After an answer (voice or tap), the next question appears after 3 seconds. Click “Next question” to skip the wait.') + '</p></div>' +
       '<div class="card"><b>' + t('Données', 'Data') + '</b><p class="small muted">' + t('Vos scores et erreurs restent sur cet appareil (stockage local du navigateur).', 'Your scores and mistakes stay on this device (browser local storage).') + '</p><button class="btn ghost" id="rz">' + t('Tout effacer', 'Erase everything') + '</button></div>' +
       '<div class="card small muted">' + Q.length + t(' questions. Pour installer l\'application : menu du navigateur → « Ajouter à l\'écran d\'accueil ».', ' questions. To install the app: browser menu → “Add to Home screen”.') + '</div>');
     app.querySelectorAll('[data-lg]').forEach(function (b) { b.onclick = function () { setLang(b.dataset.lg); }; });
+    var adb = document.getElementById('adv-set'); if (adb) adb.onclick = function () { setAdv(!advOn()); reglages(); };
     app.querySelectorAll('[data-fs]').forEach(function (b) { b.onclick = function () { S.set.fs = +b.dataset.fs; save(); applySet(); reglages(); }; });
     app.querySelectorAll('[data-th]').forEach(function (b) { b.onclick = function () { S.set.theme = b.dataset.th; save(); applySet(); reglages(); }; });
     app.querySelectorAll('[data-dk]').forEach(function (b) { b.onclick = function () { S.set.dark = b.dataset.dk === '1'; save(); applySet(); reglages(); }; });
@@ -686,6 +738,7 @@
     return REV[n] || n;
   }
   function setLang(lg) {
+    if (!EN_OK && lg === 'en') return;
     var toEN = lg === 'en';
     if (toEN === EN) return;
     var why = lockReason(); if (why) { toast(why); return; }

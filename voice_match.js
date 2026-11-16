@@ -32,6 +32,19 @@
       .trim();
   }
 
+
+  /* Normalisation phonétique FR : accents, ph→f, y→i, h muet, doubles, lettres finales muettes. */
+  function phonetic(s) {
+    var x = stripAccents(String(s).toLowerCase())
+      .replace(/ph/g, 'f')
+      .replace(/y/g, 'i')
+      .replace(/h/g, '')
+      .replace(/[^a-z0-9]+/g, '');
+    x = x.replace(/(.)\1+/g, '$1');
+    while (x.length > 2 && /[estdxpz]$/.test(x)) x = x.slice(0, -1);
+    return x;
+  }
+
   function tokens(s) { return s ? s.split(' ').filter(Boolean) : []; }
 
   function dropSW(toks) {
@@ -348,10 +361,25 @@
     }
     var full = sim(a, b);
     if (full >= 0.8) score = Math.max(score, full);
+    if (!aNum && !bNum) {
+      var pa = phonetic(a), pb = phonetic(b);
+      if (pa && pb) {
+        if (pa === pb) score = Math.max(score, 0.97);
+        else {
+          var ps = sim(pa, pb);
+          if (ps >= 0.7) score = Math.max(score, ps);
+          if (pa.length >= 4 && pb.indexOf(pa) !== -1) score = Math.max(score, 0.9);
+          if (pb.length >= 4 && pa.indexOf(pb) !== -1) {
+            var pr = pb.length / pa.length;
+            score = Math.max(score, pr >= 0.7 ? 0.9 : (pr >= 0.45 ? 0.62 : 0.45));
+          }
+        }
+      }
+    }
     return score;
   }
 
-  var THRESH = 0.72;
+  var THRESH = 0.7;
   var GAP = 0.16;
 
   function tokenHits(tok, choices, lang) {
@@ -360,6 +388,10 @@
       var ct = dropSW(tokens(normalize(choices[i], lang)));
       for (var j = 0; j < ct.length; j++) {
         var ok = ct[j] === tok || (!/^\d+$/.test(tok) && !/^\d+$/.test(ct[j]) && tok.length >= 4 && ct[j].length >= 4 && sim(ct[j], tok) >= 0.86);
+        if (!ok && !/^\d+$/.test(tok) && !/^\d+$/.test(ct[j])) {
+          var pt = phonetic(tok), pc = phonetic(ct[j]);
+          ok = !!(pt && pc && (pt === pc || (pt.length >= 3 && pc.length >= 3 && sim(pt, pc) >= 0.7)));
+        }
         if (ok) { hits.push(i); break; }
       }
     }
@@ -413,6 +445,29 @@
     if (tf !== null) return { index: tf, heard: heard, reason: 'tf' };
     var c = matchContent(heard, choices, lang);
     return { index: c.index, heard: heard, reason: c.reason, scores: c.scores };
+  }
+
+  /* Essaie plusieurs hypothèses (maxAlternatives) et retient la mieux typée, clairement plus proche. */
+  function matchVoiceAnswerMany(list, choices, lang) {
+    lang = lang || 'fr';
+    if (!list || !list.length) return matchVoiceAnswer('', choices, lang);
+    var best = null, i, r, bs, rs;
+    function top(res) {
+      if (!res || !res.scores || !res.scores.length) return res && res.index != null ? 1 : 0;
+      var s = res.scores.slice().sort(function (x, y) { return y.score - x.score; });
+      return s[0] ? s[0].score : 0;
+    }
+    for (i = 0; i < list.length; i++) {
+      r = matchVoiceAnswer(list[i], choices, lang);
+      if (!best) { best = r; continue; }
+      if (r.index == null) continue;
+      if (best.index == null) { best = r; continue; }
+      if ((r.reason === 'letter' || r.reason === 'tf') && best.reason === 'content') continue;
+      if ((best.reason === 'letter' || best.reason === 'tf') && r.reason === 'content') continue;
+      rs = top(r); bs = top(best);
+      if (rs > bs) best = r;
+    }
+    return best;
   }
 
   function matchTyped(transcript, accepted, lang) {
@@ -478,6 +533,8 @@
     sim: sim,
     matchLetter: matchLetter,
     matchVoiceAnswer: matchVoiceAnswer,
+    matchVoiceAnswerMany: matchVoiceAnswerMany,
+    phonetic: phonetic,
     matchTyped: matchTyped,
     contentScore: contentScore,
     isEchoTranscript: isEchoTranscript
