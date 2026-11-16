@@ -1,6 +1,6 @@
-const C='qcmc-v29';
+const C='qcmc-v30';
 const AUDIO='qcmc-audio-v1';
-const F=['./','index.html','app.js','data.js','manifest.webmanifest','voice_match.js?v=28','voice.js?v=28','voice.css?v=29','succ_core.js?v=26','succ.js?v=26','succ.css?v=29','desktop.css?v=29','desktop.js?v=27'];
+const F=['./','index.html','app.js','data.js','manifest.webmanifest','voice_match.js?v=28','voice.js?v=28','voice.css?v=29','succ_core.js?v=26','succ.js?v=26','succ.css?v=29','desktop.css?v=30','desktop.js?v=30'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(F)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C&&x!==AUDIO).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{

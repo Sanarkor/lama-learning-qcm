@@ -25,6 +25,17 @@ html.dk h1{font-size:1.6em;margin:.1em 0 .5em}
 #dk-side .dk-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:4px 12px 10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.3) transparent}
 #dk-side .dk-sec{display:flex;flex-direction:column;gap:2px}
 #dk-side .dk-cap{margin:14px 12px 6px;font-size:.72em;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.65}
+#dk-side .dk-cap-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;width:calc(100% - 24px);padding:4px 0;border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;text-transform:uppercase;text-align:left;cursor:pointer}
+#dk-side .dk-cap-btn:hover{opacity:.9}
+#dk-side .dk-cap-btn .ch,#dk-side .dk-cat-tog .ch{font-style:normal;font-size:1.05em;line-height:1;transition:transform .16s var(--ease,ease);display:inline-block}
+#dk-side .dk-cap-btn[aria-expanded="false"] .ch,#dk-side .dk-cat-tog[aria-expanded="false"] .ch{transform:rotate(-90deg)}
+#dk-side .dk-cat-row{display:flex;align-items:center;gap:0}
+#dk-side .dk-cat-row .dk-l{flex:1;min-width:0}
+#dk-side .dk-cat-tog{flex:none;width:28px;height:32px;margin:0 4px 0 0;padding:0;display:flex;align-items:center;justify-content:center;border:0;border-radius:8px;background:transparent;color:#fff;cursor:pointer;opacity:.75}
+#dk-side .dk-cat-tog:hover{background:rgba(255,255,255,.13);opacity:1}
+#dk-side .dk-cat-tog:focus-visible,#dk-side .dk-cap-btn:focus-visible{outline:3px solid #ffd36b;outline-offset:1px}
+#dk-side .dk-cats[hidden],#dk-side .dk-subs[hidden]{display:none!important}
+#dk-side .dk-subs{display:flex;flex-direction:column;gap:2px}
 #dk-side .dk-l{display:flex;align-items:center;gap:11px;width:100%;box-sizing:border-box;padding:9px 12px;border-radius:10px;color:#fff;text-decoration:none;font:inherit;font-weight:600;background:none;border:0;text-align:left;cursor:pointer;opacity:.9;transition:background .15s,opacity .15s}
 #dk-side .dk-l:hover{background:rgba(255,255,255,.13);opacity:1}
 #dk-side .dk-l:focus-visible,#dk-side .dk-colbtn:focus-visible,#dk-side .dk-brand:focus-visible,#dk-side .dk-lang button:focus-visible{outline:3px solid #ffd36b;outline-offset:1px}

@@ -1,6 +1,6 @@
 /* Llama Learning : interface PC (écrans d'au moins 1024 px). En dessous de 1024 px, ce script ne modifie RIEN :
    pas de classe, pas de menu latéral, pas de raccourci. Il lit l'état de l'appli par window.LLAMA (lecture seule)
-   et ne touche jamais aux données enregistrées (lamaqcm-v2), sauf la préférence du menu replié (lamaqcm-sidebar). */
+   et ne touche jamais aux données enregistrées (lamaqcm-v2), sauf la préférence du menu replié (lamaqcm-sidebar) et l'accordéon des catégories (lamaqcm-sidebar-cats). */
 (function () {
   'use strict';
   if (!window.matchMedia) return;
@@ -45,9 +45,9 @@
   function activeKey() {
     var r = route(), c = A().cur();
     if (r === '') return 'home';
-    if (r === 'entrainement') return c.tr.m === 'cg' && c.tr.t ? 'th:' + c.tr.t : 'm:' + c.tr.m;
+    if (r === 'entrainement') return c.tr.t ? 'th:' + c.tr.t : 'm:' + c.tr.m;
     if (r === 'revision') return 'revision';
-    if (r === 'session') { var l = c.P && c.P.lab; if (l && l.srs) return 'revision'; if (l && l.rv) return 'err'; if (l && l.m === 'cg' && l.t) return 'th:' + l.t; return l ? 'm:' + l.m : 'train'; }
+    if (r === 'session') { var l = c.P && c.P.lab; if (l && l.srs) return 'revision'; if (l && l.rv) return 'err'; if (l && l.t) return 'th:' + l.t; return l ? 'm:' + l.m : 'train'; }
     if (r === 'succes') return 'succ';
     if (r === 'vitesse' || r === 'vitesse-run') return 'speed';
     return { examen: 'exam', epreuve: 'exam', erreurs: 'err', scores: 'scores', reglages: 'set' }[r] || '';
@@ -63,6 +63,10 @@
     D.body.appendChild(side);
     $('#dk-colbtn').addEventListener('click', function () { colSet(!H.classList.contains('dk-col')); });
     side.addEventListener('click', function (e) {
+      var cap = e.target.closest && e.target.closest('.dk-cap-btn');
+      if (cap) { e.preventDefault(); catsToggleCap(); return; }
+      var tog = e.target.closest && e.target.closest('.dk-cat-tog');
+      if (tog) { e.preventDefault(); catsToggle(tog.getAttribute('data-m')); return; }
       var b = e.target.closest && e.target.closest('[data-lg]'); if (b) { e.preventDefault(); if (!b.disabled) A().setLang(b.getAttribute('data-lg')); return; }
       if (e.target.closest && e.target.closest('#dk-helpbtn')) { toggleHelp(); return; }
       if (e.target.closest && e.target.closest('#dk-mode')) { A().setDark(!A().dark()); return; }
@@ -88,13 +92,24 @@
     h += link('revision', '#/revision', 'cal', t('Révision du jour', 'Daily review'), sr.due ? '<em class="dk-n dk-due">' + sr.due + '</em>' : '<em class="dk-c">0</em>');
     h += link('err', '#/erreurs', 'err', t('Mes erreurs', 'My mistakes'), ne ? '<em class="dk-n">' + ne + '</em>' : '') +
       link('scores', '#/scores', 'scores', t('Scores et statistiques', 'Scores and stats')) + '</div>';
-    h += '<div class="dk-cap">' + t('Catégories', 'Categories') + '</div><div class="dk-sec dk-cats">';
+    h += '<button type="button" class="dk-cap dk-cap-btn" id="dk-cap-btn" aria-controls="dk-cats">' + t('Catégories', 'Categories') + '<i class="ch" aria-hidden="true">▾</i></button>';
+    h += '<div class="dk-sec dk-cats" id="dk-cats">';
     Object.keys(MAT).forEach(function (m) {
       var n = 0; Object.keys(st.by).forEach(function (k) { if (st.by[k].m === m) n += st.by[k].n; });
+      var ths = a.themes(m);
+      h += '<div class="dk-catg" data-m="' + esc(m) + '"><div class="dk-cat-row">';
       h += link('m:' + m, '#/entrainement?m=' + m + '&t=', '', esc(MAT[m]), '<em class="dk-c">' + n + '</em>');
-      if (m === 'cg') a.themes('cg').forEach(function (th) {
-        var x = st.by['cg|' + th]; h += '<a class="dk-l dk-sub" data-k="' + esc('th:' + th) + '" href="#/entrainement?m=cg&t=' + encodeURIComponent(th) + '"><span>' + esc(th) + '</span><em class="dk-c">' + (x ? x.n : 0) + '</em></a>';
-      });
+      if (ths.length) h += '<button type="button" class="dk-cat-tog" data-m="' + esc(m) + '" aria-controls="dk-subs-' + esc(m) + '"><i class="ch" aria-hidden="true">▾</i></button>';
+      h += '</div>';
+      if (ths.length) {
+        h += '<div class="dk-subs" id="dk-subs-' + esc(m) + '" hidden>';
+        ths.forEach(function (th) {
+          var x = st.by[m + '|' + th];
+          h += '<a class="dk-l dk-sub" data-k="' + esc('th:' + th) + '" href="#/entrainement?m=' + m + '&t=' + encodeURIComponent(th) + '"><span>' + esc(th) + '</span><em class="dk-c">' + (x ? x.n : 0) + '</em></a>';
+        });
+        h += '</div>';
+      }
+      h += '</div>';
     });
     h += '</div>';
     var keepTop = $('#dk-links', side).scrollTop;
@@ -117,6 +132,7 @@
     var sc = $('#dk-links', side); sc.scrollTop = keepTop;
     if (act && sc.contains(act)) { var r1 = act.getBoundingClientRect(), r2 = sc.getBoundingClientRect(); if (r1.top < r2.top || r1.bottom > r2.bottom) sc.scrollTop += r1.top - r2.top - (r2.height - r1.height) / 2; }
     colApply();
+    catsApply(act);
   }
 
   /* ---------- Menu replié / déplié (mémorisé) ---------- */
@@ -127,7 +143,54 @@
     if (b) { b.setAttribute('aria-expanded', c ? 'false' : 'true'); b.setAttribute('aria-label', c ? t('Déplier le menu', 'Expand the menu') : t('Réduire le menu', 'Collapse the menu')); b.title = b.getAttribute('aria-label'); }
   }
   function colSet(c) { try { localStorage.setItem(KCOL, c ? 'col' : 'open'); } catch (e) {} colApply(); }
-  window.addEventListener('storage', function (e) { if (e.key === KCOL && on) colApply(); });
+  var KCATS = 'lamaqcm-sidebar-cats';
+  function catsGet() {
+    try {
+      var x = JSON.parse(localStorage.getItem(KCATS) || '{}');
+      return { cap: x.cap !== false, open: (x.open && typeof x.open === 'object') ? x.open : {} };
+    } catch (e) { return { cap: true, open: {} }; }
+  }
+  function catsSet(s) { try { localStorage.setItem(KCATS, JSON.stringify(s)); } catch (e) {} }
+  function catsToggleCap() { var s = catsGet(); s.cap = !s.cap; catsSet(s); catsApply(); }
+  function catsToggle(m) { if (!m) return; var s = catsGet(); s.open[m] = !s.open[m]; catsSet(s); catsApply(); }
+  function catsApply(act) {
+    if (!side) return;
+    var s = catsGet();
+    act = act || $('.dk-l.dk-on', side);
+    /* si on est sur un sous-thème, le déplier le temps de la page (sans écrire dans le stockage) */
+    var forceM = act && act.closest ? (function () { var g = act.closest('.dk-catg'); return g ? g.getAttribute('data-m') : null; })() : null;
+    var capOn = s.cap || !!forceM;
+    var cap = $('#dk-cap-btn', side), sec = $('#dk-cats', side);
+    if (cap) {
+      cap.setAttribute('aria-expanded', capOn ? 'true' : 'false');
+      cap.setAttribute('aria-label', capOn ? t('Replier les catégories', 'Collapse categories') : t('Déplier les catégories', 'Expand categories'));
+    }
+    if (sec) { if (capOn) sec.removeAttribute('hidden'); else sec.setAttribute('hidden', ''); }
+    $$('.dk-catg', side).forEach(function (g) {
+      var m = g.getAttribute('data-m');
+      var on = !!s.open[m] || (forceM && forceM === m && act && act.classList.contains('dk-sub'));
+      var b = $('.dk-cat-tog', g), sub = $('.dk-subs', g);
+      var name = ($('span', $('.dk-l', g)) || {}).textContent || m;
+      if (b) {
+        b.setAttribute('aria-expanded', on ? 'true' : 'false');
+        b.setAttribute('aria-label', (on ? t('Replier ', 'Collapse ') : t('Déplier ', 'Expand ')) + name);
+      }
+      if (sub) { if (on) sub.removeAttribute('hidden'); else sub.setAttribute('hidden', ''); }
+    });
+    /* une fois déplié pour l'entrée active, s'assurer qu'elle reste visible */
+    if (act && capOn) {
+      var sc = $('#dk-links', side);
+      if (sc && sc.contains(act)) {
+        var r1 = act.getBoundingClientRect(), r2 = sc.getBoundingClientRect();
+        if (r1.top < r2.top || r1.bottom > r2.bottom) sc.scrollTop += r1.top - r2.top - (r2.height - r1.height) / 2;
+      }
+    }
+  }
+  window.addEventListener('storage', function (e) {
+    if (!on) return;
+    if (e.key === KCOL) colApply();
+    if (e.key === KCATS) catsApply();
+  });
 
   /* ---------- Accueil : tableau de bord ---------- */
   function homeDash() {
