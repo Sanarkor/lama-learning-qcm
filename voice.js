@@ -103,6 +103,7 @@
     if (r === 'session' && a.P && a.P.list) return a.P.list[a.P.i] || null;
     if (r === 'epreuve' && a.E && a.E.list) return a.E.list[a.E.i] || null;
     if (r === 'vitesse-run' && a.V && a.V.queue) return a.V.queue[a.V.i] || null;
+    if (r === 'survie-run' && a.U && a.U.queue) return a.U.queue[a.U.i] || null;
     return null;
   }
 

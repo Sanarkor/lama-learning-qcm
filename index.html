@@ -12,9 +12,9 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="voice.css?v=32">
+<link rel="stylesheet" href="voice.css?v=33">
 <link rel="stylesheet" href="succ.css?v=29">
-<link rel="stylesheet" href="desktop.css?v=32" media="(min-width:1024px)">
+<link rel="stylesheet" href="desktop.css?v=33" media="(min-width:1024px)">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;display=swap" media="(min-width:1024px)">
 <meta name="apple-mobile-web-app-title" content="Llama Learning">
 <style>/* Palettes : Indigo (défaut), Océan, Menthe, Corail, Lavande, Soleil — clair et sombre. Anciens identifiants (bleu, violet, vert, rouge) restent des alias. */
@@ -191,6 +191,40 @@ html:not(.enable-en) #langbtn,html:not(.enable-en) #langmenu,html:not(.enable-en
 .advcd .adv-bar{flex:1;height:6px;border-radius:99px;background:var(--line);overflow:hidden}
 .advcd .adv-bar i{display:block;height:100%;width:0;background:var(--navy);border-radius:99px}
 .advcd .adv-s{flex:none;font-size:.82em;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2.2em;text-align:right}
+
+.home-lead{margin:4px 2px 14px;font-size:1.05em;font-weight:650;color:var(--muted)}
+.modes{display:grid;grid-template-columns:1fr;gap:14px;margin:0 0 18px}
+.mode{display:flex;flex-direction:column;justify-content:flex-end;min-height:158px;padding:20px 18px 18px;border-radius:var(--r-card);color:#fff;text-decoration:none;border:0;font:inherit;text-align:left;box-shadow:var(--sh);transition:transform .18s var(--ease),box-shadow .18s var(--ease),filter .18s var(--ease)}
+.mode b{font-size:1.42em;line-height:1.15;letter-spacing:-.02em;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.mode span{font-size:.92em;opacity:.92;margin-top:8px;line-height:1.35}
+.mode em{display:block;margin-top:12px;font-style:normal;font-size:.82em;font-weight:700;opacity:.9}
+.mode.vitesse{background:var(--grad2)}
+.mode.survie{background:var(--hero)}
+.mode.libre{background:var(--grad)}
+body.is-home .modes{gap:14px}
+body.is-home .mode{min-height:158px;padding:20px 18px 18px}
+body.is-home .mode b{font-size:1.42em}
+.home-more{margin-top:4px}
+.lives{display:inline-flex;align-items:center;gap:4px}
+.lives .heart{font-style:normal;font-size:1.15em;line-height:1;color:rgba(0,0,0,.22);text-shadow:none}
+.lives .heart.on{color:#e11d48}
+.lives.mort{font-size:1.15em}
+.sv-rec{white-space:nowrap;margin-right:.4em}
+.go-card .score{font-size:3.2em}
+.rec-new{text-align:center;font-size:1.25em;font-weight:800;color:var(--navy);margin:8px 0 4px;animation:recpop .7s ease}
+@keyframes recpop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@media (min-width:800px){
+  .modes{grid-template-columns:repeat(3,1fr);gap:18px}
+  .mode,body.is-home .mode{min-height:220px;padding:24px 22px 20px}
+  .mode b,body.is-home .mode b{font-size:1.7em}
+  .home-lead{font-size:1.15em;margin-bottom:16px}
+}
+@media (max-width:799px){
+  .mode,body.is-home .mode{min-height:152px}
+}
+@media (hover:hover) and (pointer:fine){
+  .mode:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:0 10px 24px var(--shadow)}
+}
 </style>
 </head>
 <body>
@@ -207,9 +241,9 @@ html:not(.enable-en) #langbtn,html:not(.enable-en) #langmenu,html:not(.enable-en
 <script src="succ_core.js?v=26"></script>
 <script src="succ.js?v=26"></script>
 <script src="app.js"></script>
-<script src="voice_match.js?v=32"></script>
-<script src="voice.js?v=32"></script>
-<script src="desktop.js?v=32"></script>
+<script src="voice_match.js?v=33"></script>
+<script src="voice.js?v=33"></script>
+<script src="desktop.js?v=33"></script>
 <script data-goatcounter="https://sanarkor.goatcounter.com/count" data-goatcounter-settings='{"path":"/llama-learning"}' async src="https://gc.zgo.at/count.js"></script>
 </body>
 </html>

@@ -188,23 +188,26 @@
   function keep() { S[PK] = P; S[EK] = E; save(); }
 
   /* ---------- Accueil ---------- */
+  function svBest() { try { return JSON.parse(localStorage.getItem('lamaqcm-survie-best') || '{}') || {}; } catch (e) { return {}; } }
   function home() {
-    var last = S.hist[S.hist.length - 1];
-    h('<h1 class="sr">Llama Learning · Quiz your way to knowledge</h1><div class="tiles">' +
-      '<a class="tile hero-tile wide" href="#/entrainement?m=cg"><b>' + t('Culture générale', 'General knowledge') + '</b><span>' + t('Histoire, sciences, pop culture, séries, drapeaux et plus', 'History, science, pop culture, series, flags and more') + '</span></a>' +
-      (EN ? '<a class="tile soft" href="#/entrainement?m=en"><b>English</b><span>Vocabulary, tenses, spelling</span></a>'
-        : '<a class="tile soft" href="#/entrainement?m=fr"><b>Français</b><span>Vocabulaire, orthographe, grammaire</span></a>') +
-      '<a class="tile soft" href="#/entrainement?m=ma"><b>' + t('Calcul et logique', 'Maths and logic') + '</b><span>' + t('Calcul, suites, raisonnement', 'Arithmetic, sequences, reasoning') + '</span></a>' +
-      '<a class="tile gold" href="#/examen"><b>' + t('Examen blanc', 'Mock exam') + '</b><span>' + t('Chronométré, de 10 à 80 questions', 'Timed, 10 to 80 questions') + '</span></a>' +
-      (P && P.i < P.list.length ? '<a class="tile" href="#/session"><b>' + t('Reprendre', 'Resume') + '</b><span>' + t('Série en cours · ', 'Current set · ') + (P.i + 1) + ' / ' + P.list.length + '</span></a>' : '') +
-      (E && !E.done ? '<a class="tile" href="#/epreuve"><b>' + t('Reprendre l\'examen', 'Resume the exam') + '</b><span>' + E.list.length + t(' questions en cours', ' questions in progress') + '</span></a>' : '') +
-      (function () { var c = srsCounts(); return '<a class="tile srs-tile" href="#/revision"><b>' + t('Révision du jour', 'Daily review') + '</b><span>' + (c.due ? c.due + t(' question(s) à réviser', ' question(s) due') : t('Rien à réviser aujourd\'hui', 'Nothing due today')) + '</span></a>'; })() +
+    var last = S.hist[S.hist.length - 1], recs = svBest(), recSp = window.LLAMA_SUCC && window.LLAMA_SUCC.best(10, 'all');
+    var recSv = Math.max(recs.facile || 0, recs.moyen || 0, recs.difficile || 0, recs.mort || 0);
+    var more = '';
+    if (P && P.i < P.list.length) more += '<a class="tile" href="#/session"><b>' + t('Reprendre les questions libres', 'Resume free practice') + '</b><span>' + (P.i + 1) + ' / ' + P.list.length + '</span></a>';
+    if (V && V.ok < V.target) more += '<a class="tile" href="#/vitesse-run"><b>' + t('Reprendre le mode vitesse', 'Resume speed mode') + '</b><span>' + V.ok + ' / ' + V.target + t(' justes', ' correct') + '</span></a>';
+    if (U && !U.done) more += '<a class="tile" href="#/survie-run"><b>' + t('Reprendre le mode survie', 'Resume survival mode') + '</b><span>' + U.ok + t(' juste(s) · ', ' correct · ') + U.lives + t(' vie(s)', ' life/lives') + '</span></a>';
+    var c = srsCounts();
+    more += (function () { return '<a class="tile srs-tile" href="#/revision"><b>' + t('Révision du jour', 'Daily review') + '</b><span>' + (c.due ? c.due + t(' question(s) à réviser', ' question(s) due') : t('Rien à réviser aujourd\'hui', 'Nothing due today')) + '</span></a>'; })() +
       '<a class="tile" href="#/erreurs"><b>' + t('Mes erreurs', 'My mistakes') + '</b><span>' + nErr() + t(' question(s) à revoir', ' question(s) to review') + '</span></a>' +
-      '<a class="tile" href="#/scores"><b>' + t('Mes scores', 'My scores') + '</b><span>' + (last ? t('Dernier : ', 'Last: ') + fmt(last.note) + '/20' : t('Aucun examen', 'No exam yet')) + '</span></a>' +
-      '<a class="tile gold" href="#/vitesse"><b>' + t('Mode vitesse', 'Speed mode') + '</b><span>' + t('X justes, le plus vite possible (+5 s par erreur)', 'X correct, as fast as possible (+5 s per error)') + '</span></a>' +
-      (V && V.ok < V.target ? '<a class="tile" href="#/vitesse-run"><b>' + t('Reprendre le mode vitesse', 'Resume speed mode') + '</b><span>' + V.ok + ' / ' + V.target + t(' justes', ' correct') + '</span></a>' : '') +
-      '<a class="tile" href="#/succes"><b>' + t('Succès', 'Achievements') + '</b><span>' + (window.LLAMA_SUCC ? (function () { var m = window.LLAMA_SUCC.mini(); return m.emoji + ' ' + m.title + ' · ' + t('série ', 'streak ') + m.streak; })() : t('Badges et récompenses', 'Badges and rewards')) + '</span></a>' +
-      '</div>');
+      '<a class="tile" href="#/scores"><b>' + t('Mes scores', 'My scores') + '</b><span>' + (last ? t('Dernier : ', 'Last: ') + fmt(last.note) + '/20' : t('Historique et statistiques', 'History and statistics')) + '</span></a>' +
+      '<a class="tile" href="#/succes"><b>' + t('Succès', 'Achievements') + '</b><span>' + (window.LLAMA_SUCC ? (function () { var m = window.LLAMA_SUCC.mini(); return m.emoji + ' ' + m.title + ' · ' + t('série ', 'streak ') + m.streak; })() : t('Badges et récompenses', 'Badges and rewards')) + '</span></a>';
+    h('<h1 class="sr">Llama Learning · Quiz your way to knowledge</h1>' +
+      '<p class="home-lead">' + t('Choisissez un mode de jeu', 'Choose a game mode') + '</p>' +
+      '<div class="modes">' +
+      '<a class="mode vitesse" href="#/vitesse"><b>' + t('Mode Vitesse', 'Speed mode') + '</b><span>' + t('Un nombre de bonnes réponses, le plus vite possible, avec le moins d\'erreurs. Chaque erreur ajoute 5 s.', 'Get a set number of correct answers as fast as possible, with as few errors as possible. Each error adds 5 s.') + '</span><em>' + (recSp ? t('Record : ', 'Record: ') + window.LLAMA_SUCC.fmtMs(recSp.scoreMs) : t('Pas encore de record', 'No record yet')) + '</em></a>' +
+      '<a class="mode survie" href="#/survie"><b>' + t('Mode Survie', 'Survival mode') + '</b><span>' + t('Des questions sans fin, avec 3, 2, 1 ou 0 vie. Le score est le nombre de bonnes réponses.', 'Endless questions, with 3, 2, 1 or 0 lives. Your score is the number of correct answers.') + '</span><em>' + (recSv ? t('Meilleur score : ', 'Best score: ') + recSv : t('Pas encore de record', 'No record yet')) + '</em></a>' +
+      '<a class="mode libre" href="#/libre"><b>' + t('Questions libres', 'Free practice') + '</b><span>' + t('Choisissez un ou plusieurs thèmes, ou le hasard, puis entraînez-vous avec la correction.', 'Pick one or more topics, or go random, then practise with instant corrections.') + '</span><em>' + t('Correction, avance automatique et mode vocal', 'Corrections, auto-advance and voice mode') + '</em></a>' +
+      '</div><div class="tiles home-more">' + more + '</div>');
   }
 
   /* ---------- Entraînement ---------- */
@@ -447,7 +450,7 @@
     app.querySelectorAll('[data-fs]').forEach(function (b) { b.onclick = function () { S.set.fs = +b.dataset.fs; save(); applySet(); reglages(); }; });
     app.querySelectorAll('[data-th]').forEach(function (b) { b.onclick = function () { S.set.theme = b.dataset.th; save(); applySet(); reglages(); }; });
     app.querySelectorAll('[data-dk]').forEach(function (b) { b.onclick = function () { S.set.dark = b.dataset.dk === '1'; save(); applySet(); reglages(); }; });
-    document.getElementById('rz').onclick = function () { if (confirm(t('Effacer scores, erreurs, statistiques, succès et records de vitesse ?', 'Erase scores, mistakes, statistics, achievements and speed records?'))) { S.hist = []; S.err = {}; S.stat = {}; S.P = S.E = S.P_en = S.E_en = null; R = { v: 1, seeded: true, it: {} }; saveSrs(); P = null; E = null; V = null; try { localStorage.removeItem('lamaqcm-speed'); } catch (e) {} if (window.LLAMA_SUCC) window.LLAMA_SUCC.resetAll(); keep(); reglages(); } };
+    document.getElementById('rz').onclick = function () { if (confirm(t('Effacer scores, erreurs, statistiques, succès et records de vitesse ?', 'Erase scores, mistakes, statistics, achievements and speed records?'))) { S.hist = []; S.err = {}; S.stat = {}; S.P = S.E = S.P_en = S.E_en = null; R = { v: 1, seeded: true, it: {} }; saveSrs(); P = null; E = null; V = null; U = null; try { localStorage.removeItem('lamaqcm-speed'); localStorage.removeItem('lamaqcm-survie'); localStorage.removeItem('lamaqcm-survie-best'); } catch (e) {} if (window.LLAMA_SUCC) window.LLAMA_SUCC.resetAll(); keep(); reglages(); } };
   }
 
 
@@ -571,7 +574,173 @@
   }
 
   /* ---------- Routeur ---------- */
-  var routes = { '': home, entrainement: train, session: practice, examen: examSetup, epreuve: exam, erreurs: errors, revision: revision, scores: scores, reglages: reglages, succes: succes, vitesse: speedSetup, 'vitesse-run': speedRun };
+
+  /* ---------- Questions libres (entraînement par thème, multi-thèmes ou aléatoire) ---------- */
+  var lb = { all: true, sel: {}, n: 20 };
+  function libreKey(m, th) { return m + '|' + (th || ''); }
+  function librePool() {
+    if (lb.all) return Q.slice();
+    var keys = Object.keys(lb.sel).filter(function (k) { return lb.sel[k]; });
+    if (!keys.length) return Q.slice();
+    return Q.filter(function (q) {
+      return lb.sel[libreKey(q.m, '')] || lb.sel[libreKey(q.m, q.t)];
+    });
+  }
+  function libreLabel() {
+    if (lb.all) return t('Aléatoire', 'Random');
+    var names = [];
+    Object.keys(lb.sel).forEach(function (k) {
+      if (!lb.sel[k]) return;
+      var p = k.split('|');
+      names.push(p[1] ? p[1] : MAT[p[0]]);
+    });
+    return names.length ? names.join(', ') : t('Aléatoire', 'Random');
+  }
+  function libre() {
+    var poolN = librePool().length;
+    var html = back() + '<h1>' + t('Questions libres', 'Free practice') + '</h1><div class="card"><p>' + t('Choisissez un thème, plusieurs, ou le hasard. Chaque réponse est corrigée tout de suite, puis la question suivante arrive après 3 secondes (réglable). Le mode vocal fonctionne ici.', 'Pick one topic, several, or a random mix. Each answer is corrected immediately, then the next question comes after 3 seconds (this can be turned off). Voice mode works here.') + '</p>' +
+      '<b>' + t('Thèmes', 'Topics') + '</b><div class="chips"><button type="button" class="chip' + (lb.all ? ' on' : '') + '" data-la="1">' + t('Aléatoire', 'Random') + ' (' + Q.length + ')</button></div>';
+    Object.keys(MAT).forEach(function (m) {
+      html += '<p class="small muted" style="margin:10px 0 6px">' + esc(MAT[m]) + '</p><div class="chips">';
+      html += '<button type="button" class="chip' + (!lb.all && lb.sel[libreKey(m, '')] ? ' on' : '') + '" data-lk="' + esc(libreKey(m, '')) + '">' + t('Toute la matière', 'Whole subject') + ' (' + count(function (q) { return q.m === m; }) + ')</button>';
+      themes(m).forEach(function (th) {
+        html += '<button type="button" class="chip' + (!lb.all && lb.sel[libreKey(m, th)] ? ' on' : '') + '" data-lk="' + esc(libreKey(m, th)) + '">' + esc(th) + ' (' + count(function (q) { return q.m === m && q.t === th; }) + ')</button>';
+      });
+      html += '</div>';
+    });
+    html += '<b>' + t('Nombre de questions', 'Number of questions') + '</b><div class="chips">' + [10, 20, 30, 50].map(function (n) { return '<button type="button" class="chip' + (lb.n === n ? ' on' : '') + '" data-ln="' + n + '">' + n + '</button>'; }).join('') + '</div>' +
+      '<button class="btn gold block" id="go"' + (poolN ? '' : ' disabled') + '>' + t('Commencer (', 'Start (') + Math.min(lb.n, poolN) + t(' questions)', ' questions)') + '</button></div>';
+    if (P && P.i < P.list.length) html += '<div class="card"><p>' + t('Une série est en cours (', 'A set is in progress (') + (P.i + 1) + ' / ' + P.list.length + ').</p><a class="btn" href="#/session">' + t('Reprendre', 'Resume') + '</a></div>';
+    h(html);
+    var la = app.querySelector('[data-la]'); if (la) la.onclick = function () { lb.all = true; lb.sel = {}; libre(); };
+    app.querySelectorAll('[data-lk]').forEach(function (b) { b.onclick = function () { lb.all = false; var k = b.dataset.lk; lb.sel[k] = !lb.sel[k]; if (!Object.keys(lb.sel).some(function (x) { return lb.sel[x]; })) lb.all = true; libre(); }; });
+    app.querySelectorAll('[data-ln]').forEach(function (b) { b.onclick = function () { lb.n = +b.dataset.ln; libre(); }; });
+    document.getElementById('go').onclick = function () {
+      var list = shuffle(librePool()); if (lb.n) list = list.slice(0, lb.n);
+      if (!list.length) return alert(t('Aucune question pour ce choix.', 'No questions for this choice.'));
+      startPractice(list, { m: '', t: libreLabel(), libre: true }, '#/libre');
+    };
+  }
+
+  /* ---------- Mode survie ---------- */
+  var SV_DIFF = [
+    { id: 'facile', lives: 3 },
+    { id: 'moyen', lives: 2 },
+    { id: 'difficile', lives: 1 },
+    { id: 'mort', lives: 0 }
+  ];
+  function svDiffName(id) {
+    return { facile: t('Facile', 'Easy'), moyen: t('Moyen', 'Medium'), difficile: t('Difficile', 'Hard'), mort: t('Mort subite', 'Sudden death') }[id] || id;
+  }
+  var sv = { d: 'moyen', m: '', t: '' };
+  var U = null;
+  (function loadU() {
+    try { var x = JSON.parse(localStorage.getItem('lamaqcm-survie') || 'null'); if (x && x.queue && x.queue.length && !x.done) U = x; } catch (e) { U = null; }
+  })();
+  function keepU() { try { if (U && !U.done) localStorage.setItem('lamaqcm-survie', JSON.stringify(U)); else localStorage.removeItem('lamaqcm-survie'); } catch (e) {} }
+  function svSaveBest(diff, score) {
+    var b = svBest(), prev = +b[diff] || 0, isNew = score > prev;
+    if (isNew) { b[diff] = score; try { localStorage.setItem('lamaqcm-survie-best', JSON.stringify(b)); } catch (e) {} }
+    return { best: Math.max(prev, score), isNew: isNew, prev: prev };
+  }
+  function svPool() { return Q.filter(function (q) { return !sv.m || (q.m === sv.m && (!sv.t || q.t === sv.t)); }); }
+  function svLabel() { return !sv.m ? t('Tous les thèmes', 'All topics') : (sv.t || MAT[sv.m]); }
+  function svHearts(n, max) {
+    if (max <= 0) return '<span class="lives mort" title="' + t('Mort subite', 'Sudden death') + '">⚡ ' + t('Mort subite', 'Sudden death') + '</span>';
+    var s = '', i; for (i = 0; i < max; i++) s += '<i class="heart' + (i < n ? ' on' : '') + '" aria-hidden="true">♥</i>';
+    return '<span class="lives" aria-label="' + n + ' / ' + max + '">' + s + '</span>';
+  }
+  function svSetup() {
+    var poolN = svPool().length, recs = svBest();
+    var html = back() + '<h1>' + t('Mode Survie', 'Survival mode') + '</h1><div class="card"><p>' + t('Les questions s\'enchaînent tant qu\'il vous reste des vies. Une erreur (ou « Je ne sais pas ») fait perdre une vie. En mort subite, la première erreur termine la partie. Le score est le nombre de bonnes réponses ; le record de chaque difficulté est enregistré sur cet appareil.', 'Questions keep coming for as long as you have lives left. An error (or “I don\'t know”) costs a life. In sudden death, the first error ends the run. Your score is the number of correct answers; the record for each difficulty is saved on this device.') + '</p>' +
+      '<b>' + t('Difficulté', 'Difficulty') + '</b><div class="chips">';
+    SV_DIFF.forEach(function (d) {
+      var hint = d.id === 'mort' ? t('0 vie · première erreur fatale', '0 lives · first error ends it') : (d.lives + (d.lives > 1 ? t(' vies', ' lives') : t(' vie', ' life')));
+      html += '<button type="button" class="chip' + (sv.d === d.id ? ' on' : '') + '" data-sd="' + d.id + '">' + svDiffName(d.id) + ' · ' + hint + '</button>';
+    });
+    html += '</div><b>' + t('Thèmes (optionnel)', 'Topics (optional)') + '</b><div class="chips"><button type="button" class="chip' + (!sv.m ? ' on' : '') + '" data-sm="">' + t('Tous', 'All') + '</button>' +
+      Object.keys(MAT).map(function (m) { return '<button type="button" class="chip' + (sv.m === m && !sv.t ? ' on' : '') + '" data-sm="' + m + '">' + esc(MAT[m]) + '</button>'; }).join('') + '</div>';
+    if (sv.m === 'cg') {
+      html += '<div class="chips"><button type="button" class="chip' + (sv.m === 'cg' && !sv.t ? ' on' : '') + '" data-st="">' + t('Tous les thèmes', 'All topics') + '</button>' +
+        themes('cg').map(function (x) { return '<button type="button" class="chip' + (sv.t === x ? ' on' : '') + '" data-st="' + esc(x) + '">' + esc(x) + '</button>'; }).join('') + '</div>';
+    }
+    html += '<p>' + SV_DIFF.map(function (d) { var r = recs[d.id]; return '<span class="sv-rec">' + svDiffName(d.id) + ' : <b>' + (r || '—') + '</b></span>'; }).join(' · ') + '</p>' +
+      '<button class="btn gold block" id="go"' + (poolN ? '' : ' disabled') + '>' + t('Commencer · ', 'Start · ') + svDiffName(sv.d) + ' (' + poolN + t(' questions)', ' questions)') + '</button></div>';
+    if (U && !U.done) html += '<div class="card"><p>' + t('Une partie est en cours (', 'A run is in progress (') + U.ok + t(' juste(s), ', ' correct, ') + U.lives + t(' vie(s)).', ' life/lives).') + '</p><a class="btn" href="#/survie-run">' + t('Reprendre', 'Resume') + '</a></div>';
+    h(html);
+    app.querySelectorAll('[data-sd]').forEach(function (b) { b.onclick = function () { sv.d = b.dataset.sd; svSetup(); }; });
+    app.querySelectorAll('[data-sm]').forEach(function (b) { b.onclick = function () { sv.m = b.dataset.sm; sv.t = ''; svSetup(); }; });
+    app.querySelectorAll('[data-st]').forEach(function (b) { b.onclick = function () { sv.t = b.dataset.st; if (sv.t) sv.m = 'cg'; svSetup(); }; });
+    document.getElementById('go').onclick = function () {
+      var pool = shuffle(svPool()), d = SV_DIFF.filter(function (x) { return x.id === sv.d; })[0] || SV_DIFF[1];
+      if (!pool.length) return alert(t('Aucune question pour ce choix.', 'No questions for this choice.'));
+      U = { d: d.id, lives: d.lives, lives0: d.lives, ok: 0, ko: 0, queue: deal(pool), i: 0, ans: null, m: sv.m, t: sv.t, label: svDiffName(d.id) + ' · ' + svLabel(), done: false, dead: false, sid: Date.now() };
+      keepU(); location.hash = '#/survie-run';
+    };
+  }
+  function svMore() {
+    var last = U.queue.length ? U.queue[U.queue.length - 1].id : null;
+    var more = shuffle(Q.filter(function (q) { return !U.m || (q.m === U.m && (!U.t || q.t === U.t)); }));
+    if (last && more.length > 1 && more[0].id === last) more.push(more.shift());
+    U.queue = U.queue.concat(deal(more));
+  }
+  function svRun() {
+    if (!U) { location.hash = '#/survie'; return; }
+    if (U.done) return svOver();
+    if (U.i >= U.queue.length) svMore();
+    var it = U.queue[U.i], q = qOf(it), g = goodPos(it), a = U.ans;
+    var html = back('#/survie') + '<div class="qhead"><span>' + t('Mode Survie', 'Survival mode') + ' · ' + esc(U.label) + '</span>' + svHearts(U.lives, U.lives0) + '</div>' +
+      '<p class="small muted">' + t('Score : ', 'Score: ') + '<b>' + U.ok + '</b>' + (U.ko ? t(' · ', ' · ') + U.ko + t(' erreur(s)', ' error(s)') : '') + '</p>' +
+      '<div class="card"><div class="qhead"><span>' + esc(q.t) + ' · ' + esc(q.s) + '</span></div><div class="q">' + esc(q.q) + '</div>' + stemFlag(q) + '<div class="opts">' +
+      [0, 1, 2, 3].map(function (j) {
+        var cls = a === null ? '' : (j === g ? ' good' : (j === a ? ' bad' : ''));
+        return '<button class="opt' + cls + '" data-j="' + j + '"' + (a !== null ? ' disabled' : '') + '><span class="l">' + L[j] + '</span>' + optFlag(q, it.o[j]) + '<span>' + esc(optAt(it, j)) + '</span></button>';
+      }).join('') + '</div>';
+    if (a === null) html += '<div class="row"><button class="btn ghost" id="skip">' + t('Je ne sais pas', 'I don\'t know') + '</button></div>';
+    else html += '<div class="expl">' + (a === g ? '<b class="ok">' + t('Bonne réponse.', 'Correct.') + '</b> ' : '<b class="ko">' + (a === -1 ? t('Sans réponse.', 'No answer.') : t('Mauvaise réponse.', 'Wrong answer.')) + '</b> ' + t('Réponse : ', 'Answer: ') + L[g] + '. ') + esc(q.e) +
+      '</div><div class="row"><button class="btn gold" id="next">' + (U.dead ? t('Voir le bilan', 'See results') : t('Question suivante', 'Next question')) + '</button></div>';
+    html += '</div>';
+    h(html);
+    if (a === null) qShownAt = Date.now();
+    app.querySelectorAll('.opt').forEach(function (b) { b.onclick = function () { svAnswer(+b.dataset.j); }; });
+    var sk = document.getElementById('skip'); if (sk) sk.onclick = function () { svAnswer(-1); };
+    var nx = document.getElementById('next');
+    if (nx) nx.onclick = function () { cancelAdvance(); if (U.dead) svOver(); else svAdvance(); };
+    if (a !== null && nx) armAdvance(nx);
+  }
+  function svAnswer(j) {
+    if (!U || U.ans !== null || U.done) return;
+    var it = U.queue[U.i], g = goodPos(it), ms = qShownAt ? Date.now() - qShownAt : null;
+    U.ans = j;
+    if (j === g) U.ok++;
+    else {
+      U.ko++;
+      if (U.lives <= 0) U.dead = true;
+      else { U.lives--; if (U.lives <= 0) U.dead = true; }
+    }
+    rec(qOf(it), j === g); noteAnswer(j === g, j === -1, it.id, ms, 'survie'); keepU(); svRun();
+  }
+  function svAdvance() {
+    if (!U || U.done) return;
+    if (U.dead) return svOver();
+    U.ans = null; U.i++; keepU(); svRun();
+  }
+  function svOver() {
+    if (!U) { location.hash = '#/survie'; return; }
+    cancelAdvance();
+    U.done = true;
+    var score = U.ok, diff = U.d, label = U.label, r = svSaveBest(diff, score);
+    U = null; keepU();
+    var html = '<h1>' + t('Partie terminée', 'Game over') + '</h1><div class="card go-card" id="sv-over"><div class="score">' + score + '</div>' +
+      '<p style="text-align:center">' + t('Bonnes réponses · ', 'Correct answers · ') + esc(label) + '</p>' +
+      (r.isNew && score > 0 ? '<p class="rec-new">' + t('🎉 Nouveau record !', '🎉 New record!') + '</p>' : '') +
+      '<p style="text-align:center" class="muted">' + t('Record ', 'Record ') + svDiffName(diff) + ' : <b>' + r.best + '</b>' + (r.prev && !r.isNew ? t(' (meilleur : ', ' (best: ') + r.prev + ')' : '') + '</p>' +
+      '<div class="row"><a class="btn gold" href="#/survie">' + t('Rejouer', 'Play again') + '</a><a class="btn ghost" href="#/">' + t('Accueil', 'Home') + '</a></div></div>';
+    h(html);
+  }
+
+  var routes = { '': home, entrainement: train, libre: libre, session: practice, examen: examSetup, epreuve: exam, erreurs: errors, revision: revision, scores: scores, reglages: reglages, succes: succes, vitesse: speedSetup, 'vitesse-run': speedRun, survie: svSetup, 'survie-run': svRun };
+
   function route() {
     var parts = location.hash.replace(/^#\/?/, '').split('?'), r = parts[0], prm = {};
     (parts[1] || '').split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) prm[p[0]] = decodeURIComponent(p[1] || ''); });
@@ -772,7 +941,7 @@
   }
   /* Lecture seule pour l'interface PC (desktop.js) : aucune donnée n'est modifiée par ces fonctions, sauf setLang (même effet que le menu des langues). */
   window.LLAMA = { en: function () { return EN; }, mat: function () { return MAT; }, q: function () { return Q; }, state: function () { return S; },
-    cur: function () { return { P: P, E: E, tr: tr, V: V }; }, nErr: nErr, srs: srsCounts, dark: function () { return !!S.set.dark; }, setDark: function (v) { S.set.dark = !!v; save(); applySet(); var y = window.scrollY; keepScroll = true; try { route(); } finally { keepScroll = false; } window.scrollTo(0, y); }, themes: themes, route: curRoute, lockReason: lockReason, setLang: setLang };
+    cur: function () { return { P: P, E: E, tr: tr, V: V, U: U, lb: lb }; }, nErr: nErr, srs: srsCounts, dark: function () { return !!S.set.dark; }, setDark: function (v) { S.set.dark = !!v; save(); applySet(); var y = window.scrollY; keepScroll = true; try { route(); } finally { keepScroll = false; } window.scrollTo(0, y); }, themes: themes, route: curRoute, lockReason: lockReason, setLang: setLang };
   headerLabels();
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
   route();

@@ -26,7 +26,9 @@
     cal: '<rect x="3.5" y="5" width="17" height="15" rx="1"/><path d="M3.5 9.5h17M8 3v4M16 3v4M8.5 14.5l2.2 2.2 4.8-4.8"/>',
     kb: '<rect x="2.5" y="6" width="19" height="12" rx="1.5"/><path d="M6 10h1M9.5 10h1M13 10h1M16.5 10h1M7 14h10"/>',
     succ: '<path d="M12 3.2 14.3 9h6.3l-5.1 3.8 2 6.2L12 15.4 6.5 19l2-6.2L3.4 9h6.3Z"/>',
-    speed: '<path d="M13 3 6 14h5l-1 7 8-12h-5l1-6z"/>'
+    speed: '<path d="M13 3 6 14h5l-1 7 8-12h-5l1-6z"/>',
+    survie: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.6-7 10-7 10z"/>',
+    libre: '<path d="M5 5h14M5 12h14M5 19h8"/>'
   };
   function ico(k) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + IC[k] + '</svg>'; }
   function logoSrc() { var i = $('.top .brand img'); return i ? i.getAttribute('src') : ''; }
@@ -50,6 +52,8 @@
     if (r === 'session') { var l = c.P && c.P.lab; if (l && l.srs) return 'revision'; if (l && l.rv) return 'err'; if (l && l.t) return 'th:' + l.t; return l ? 'm:' + l.m : 'train'; }
     if (r === 'succes') return 'succ';
     if (r === 'vitesse' || r === 'vitesse-run') return 'speed';
+    if (r === 'survie' || r === 'survie-run') return 'survie';
+    if (r === 'libre') return 'libre';
     return { examen: 'exam', epreuve: 'exam', erreurs: 'err', scores: 'scores', reglages: 'set' }[r] || '';
   }
   function link(k, href, icon, label, extra) {
@@ -81,14 +85,16 @@
     if (!side) return;
     var a = A(), MAT = a.mat(), c = a.cur(), st = stats(), ne = a.nErr();
     side.setAttribute('aria-label', t('Navigation principale', 'Main navigation'));
-    var h = '<div class="dk-sec">' + link('home', '#/', 'home', t('Accueil', 'Home')) + link('train', '#/entrainement', 'train', t('Entraînement', 'Practice')) +
-      link('exam', '#/examen', 'exam', t('Examen blanc', 'Mock exam')) +
-      link('speed', '#/vitesse', 'speed', t('Mode vitesse', 'Speed mode')) +
+    var h = '<div class="dk-sec">' + link('home', '#/', 'home', t('Accueil', 'Home')) +
+      link('speed', '#/vitesse', 'speed', t('Mode Vitesse', 'Speed mode')) +
+      link('survie', '#/survie', 'survie', t('Mode Survie', 'Survival mode')) +
+      link('libre', '#/libre', 'libre', t('Questions libres', 'Free practice')) +
       link('succ', '#/succes', 'succ', t('Succès', 'Achievements'));
     var rr = route();
     if (c.P && c.P.i < c.P.list.length && rr !== 'session') h += link('resume', '#/session', 'resume', t('Reprendre la série', 'Resume the set'), '<em class="dk-c">' + (c.P.i + 1) + '/' + c.P.list.length + '</em>');
     if (c.E && !c.E.done && rr !== 'epreuve') h += link('resumex', '#/epreuve', 'resume', t('Reprendre l\'examen', 'Resume the exam'), '<em class="dk-c">' + c.E.list.length + ' q</em>');
     if (c.V && c.V.ok < c.V.target && rr !== 'vitesse-run') h += link('speed', '#/vitesse-run', 'resume', t('Reprendre le mode vitesse', 'Resume speed mode'), '<em class="dk-c">' + c.V.ok + '/' + c.V.target + '</em>');
+    if (c.U && !c.U.done && rr !== 'survie-run') h += link('survie', '#/survie-run', 'resume', t('Reprendre le mode survie', 'Resume survival mode'), '<em class="dk-c">' + c.U.ok + t(' justes', ' correct') + '</em>');
     var sr = a.srs();
     h += link('revision', '#/revision', 'cal', t('Révision du jour', 'Daily review'), sr.due ? '<em class="dk-n dk-due">' + sr.due + '</em>' : '<em class="dk-c">0</em>');
     h += link('err', '#/erreurs', 'err', t('Mes erreurs', 'My mistakes'), ne ? '<em class="dk-n">' + ne + '</em>' : '') +
@@ -202,12 +208,12 @@
 
   /* ---------- Accueil : tableau de bord ---------- */
   function homeDash() {
-    var app = D.getElementById('app'), tiles = $('.tiles', app); if (!tiles || $('#dk-dash', app)) return;
+    var app = D.getElementById('app'), modes = $('.modes', app), tiles = $('.tiles', app);
+    if ((!modes && !tiles) || $('#dk-dash', app)) return;
     var a = A(), st = stats(), S = st.S, last = S.hist[S.hist.length - 1], tot = st.tot, ans = tot.ok + tot.ko, ne = a.nErr(), nq = a.q().length;
     var rate = ans ? Math.round(100 * tot.ok / ans) : null;
     var x = D.createElement('section'); x.id = 'dk-dash';
-    var h = '<div class="dk-hello"><div><h1>' + t('Tableau de bord', 'Dashboard') + '</h1><p class="dk-motto" lang="en">Quiz your way to knowledge</p></div>' +
-      '<a class="btn gold dk-cta" href="#/entrainement">' + t('Lancer un entraînement', 'Start practising') + '</a></div>' +
+    var h = '<div class="dk-hello"><div><h1>' + t('Tableau de bord', 'Dashboard') + '</h1><p class="dk-motto" lang="en">Quiz your way to knowledge</p></div></div>' +
       '<div class="dk-kpis">' +
       '<div class="dk-kpi dk-k1"><b>' + fmt(tot.seen) + '<small> / ' + fmt(nq) + '</small></b><span>' + t('questions déjà vues', 'questions seen') + '</span><div class="dk-pb"><i style="width:' + (nq ? Math.min(100, 100 * tot.seen / nq) : 0) + '%"></i></div></div>' +
       '<div class="dk-kpi"><b>' + (rate === null ? '–' : pct(rate)) + '</b><span>' + (ans ? t('de bonnes réponses (', 'correct answers (') + fmt(tot.ok) + '/' + fmt(ans) + ')' : t('de bonnes réponses', 'correct answers')) + '</span></div>' +
@@ -217,7 +223,9 @@
     h += '<div class="dk-srs"><div class="dk-srs-t"><b>' + t('Révision du jour', 'Daily review') + '</b><span>' + t('Répétition espacée : 1, 3, 7 puis 14 jours', 'Spaced repetition: 1, 3, 7, then 14 days') + '</span></div>' +
       '<div class="dk-srs-n"><b>' + sr.due + '</b><span>' + t('dues aujourd\'hui', 'due today') + '</span></div><div class="dk-srs-n"><b>' + sr.learning + '</b><span>' + t('en cours', 'in progress') + '</span></div><div class="dk-srs-n"><b>' + sr.mastered + '</b><span>' + t('maîtrisées', 'mastered') + '</span></div>' +
       '<a class="btn' + (sr.due ? ' gold' : ' ghost') + '" href="#/revision">' + (sr.due ? t('Réviser (', 'Review (') + sr.due + ')' : t('À jour', 'Up to date')) + '</a></div>';
-    x.innerHTML = h; app.insertBefore(x, tiles);
+    x.innerHTML = h;
+    if (modes) { if (modes.nextSibling) app.insertBefore(x, modes.nextSibling); else app.appendChild(x); }
+    else app.insertBefore(x, tiles);
     /* Catégories : un encart par thème (et par matière), avec la part déjà vue et le taux de réussite */
     var cats = D.createElement('section'); cats.id = 'dk-cats';
     var MAT = a.mat(), ch = '<h2>' + t('Catégories', 'Categories') + '<small>' + t('repliées par matière — cliquez pour ouvrir, puis un thème pour vous entraîner', 'collapsed by subject — click to open, then a topic to practise it') + '</small></h2>';
@@ -247,7 +255,7 @@
   function kb(k) { return '<kbd>' + k + '</kbd>'; }
   function quizSide() {
     var app = D.getElementById('app'), r = route(), c = A().cur(), card = $('.card', app);
-    var isQ = !!$('.opts', app) && (r === 'session' || r === 'epreuve' || r === 'vitesse-run');
+    var isQ = !!$('.opts', app) && (r === 'session' || r === 'epreuve' || r === 'vitesse-run' || r === 'survie-run');
     H.classList.toggle('dk-quiz', isQ);
     if (!isQ) return;
     var asd = D.createElement('aside'); asd.className = 'dk-qside';
@@ -256,6 +264,14 @@
       asd.innerHTML = '<div class="dk-qcard"><div class="dk-qt">' + t('Mode vitesse', 'Speed mode') + '</div><div class="dk-big">' + V.ok + '<small> / ' + V.target + '</small></div>' +
         '<div class="dk-qk"><div><b class="ok">' + V.ok + '</b>' + t('justes', 'correct') + '</div><div><b class="ko">' + V.ko + '</b>' + t('erreurs', 'errors') + '</div><div><b>+' + (V.penalties || 0) + ' s</b>' + t('pénalités', 'penalties') + '</div></div>' +
         '<div class="dk-qn">' + esc(V.label || '') + '</div></div>';
+    } else if (r === 'survie-run' && c.U) {
+      var U = c.U;
+      asd.innerHTML = '<div class="dk-qcard"><div class="dk-qt">' + t('Mode Survie', 'Survival mode') + '</div><div class="dk-big">' + U.ok + '</div>' +
+        '<div class="dk-qk"><div><b class="ok">' + U.ok + '</b>' + t('justes', 'correct') + '</div><div><b>' + U.lives + '</b>' + t('vies', 'lives') + '</div><div><b class="ko">' + U.ko + '</b>' + t('erreurs', 'errors') + '</div></div>' +
+        '<div class="dk-qn">' + esc(U.label || '') + '</div></div>' +
+        '<div class="dk-qcard dk-keys"><div class="dk-qt">' + t('Clavier', 'Keyboard') + '</div>' +
+        '<div>' + kb('1') + '–' + kb('4') + ' ' + t('ou', 'or') + ' ' + kb('A') + '–' + kb('D') + '<span>' + t('répondre', 'answer') + '</span></div>' +
+        '<div>' + kb('0') + '<span>' + t('je ne sais pas', 'I don\'t know') + '</span></div><div>' + kb('Entrée') + '<span>' + t('question suivante', 'next question') + '</span></div></div>';
     } else if (r === 'session' && c.P) {
       var P = c.P, n = P.ok + P.ko + P.om;
       asd.innerHTML = '<div class="dk-qcard"><div class="dk-qt">' + t('Série en cours', 'Current set') + '</div><div class="dk-big">' + (P.i + 1) + '<small> / ' + P.list.length + '</small></div>' +
@@ -302,15 +318,15 @@
     var k = e.key, r = route();
     if (k === 'h' || k === 'H') { e.preventDefault(); toggleHelp(true); return; }
     var idx = '1234'.indexOf(k); if (idx < 0 && k.length === 1) idx = 'abcd'.indexOf(k.toLowerCase());
-    if (r === 'session' || r === 'epreuve') {
+    if (r === 'session' || r === 'epreuve' || r === 'vitesse-run' || r === 'survie-run') {
       if (idx >= 0 && k.length === 1) { if (click('.opt[data-j="' + idx + '"]')) e.preventDefault(); return; }
-      if (r === 'session' && (k === '0' || k === '?')) { if (click('#skip')) e.preventDefault(); return; }
-      if (k === 'Enter') { if (tg === 'BUTTON' || tg === 'A') return; if (click(r === 'session' ? '#next' : '#nxt')) e.preventDefault(); return; }
+      if ((r === 'session' || r === 'vitesse-run' || r === 'survie-run') && (k === '0' || k === '?')) { if (click('#skip')) e.preventDefault(); return; }
+      if (k === 'Enter') { if (tg === 'BUTTON' || tg === 'A') return; if (click((r === 'session' || r === 'survie-run' || r === 'vitesse-run') ? '#next' : '#nxt')) e.preventDefault(); return; }
       if (r === 'epreuve' && k === 'ArrowRight') { if (click('#nxt')) e.preventDefault(); return; }
       if (r === 'epreuve' && k === 'ArrowLeft') { if (click('#prev')) e.preventDefault(); return; }
       return;
     }
-    if ((r === 'entrainement' || r === 'examen') && k === 'Enter' && tg !== 'BUTTON' && tg !== 'A') { if (click('#go')) e.preventDefault(); }
+    if ((r === 'entrainement' || r === 'examen' || r === 'libre' || r === 'survie' || r === 'vitesse') && k === 'Enter' && tg !== 'BUTTON' && tg !== 'A') { if (click('#go')) e.preventDefault(); }
   }
 
   /* ---------- Rendu ---------- */
