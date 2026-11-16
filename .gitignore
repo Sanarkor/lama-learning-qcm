@@ -1,2 +1,3 @@
-# Clips MP3 générés (volumineux, cache runtime seulement). Le manifeste est versionné.
+# Clips MP3 : les fichiers français sont versionnés (ajout explicite).
+# Les clips anglais (Sonia) ne sont pas commités pour l’instant.
 audio/*.mp3
